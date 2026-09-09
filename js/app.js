@@ -549,6 +549,12 @@ function aplicarNatureza() {
     else { el.removeAttribute('data-required'); el.classList.remove('is-invalid'); }
   };
 
+  /* tributário/fiscal/administrativo é uma escolha só; o número do processo
+     administrativo fica obrigatório aqui e opcional em qualquer outra natureza */
+  const fiscal = nat === 'tributario';
+  alterna('#numAdministrativo', fiscal);
+  $('#numAdministrativoOpt').hidden = fiscal;
+
   alterna('#valorCausa', !!nat && !recursal);
   alterna('#indice', !!nat);
   alterna('#objetivo', !!nat);
@@ -566,7 +572,6 @@ function aplicarNatureza() {
   }
 
   /* vigência mínima: 3 anos, salvo garantia fiscal, que pede 5 */
-  const fiscal = nat === 'tributario';
   const min = fiscal ? 5 : 3;
   $$('#vigAnos option').forEach(o => {
     if (!o.value) return;

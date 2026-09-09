@@ -155,10 +155,13 @@
             <input class="input" id="juizoNome" name="juizoNome" autocomplete="off" data-required
                    placeholder="ex.: 4ª Vara do Trabalho de São Paulo">
           </div>
-          <div class="field" data-only="tributario administrativo" hidden>
-            <label class="label" for="numAdministrativo">Número do processo administrativo</label>
+          <div class="field">
+            <label class="label" for="numAdministrativo">
+              Número do processo administrativo <span class="opt" id="numAdministrativoOpt">opcional</span>
+            </label>
             <input class="input mono" id="numAdministrativo" name="numAdministrativo" autocomplete="off"
                    placeholder="ex.: 10880.720145/2025-11">
+            <p class="hint">Obrigatório para tributário / fiscal / administrativo.</p>
           </div>
         </div>
       </section>
@@ -171,7 +174,7 @@
           <p class="block-sub">Isto define quais campos a seção 04 pede.</p>
         </div>
 
-        <div class="choices" role="radiogroup" aria-label="Natureza da ação" id="naturezaGroup">
+        <div class="choices choices-3" role="radiogroup" aria-label="Natureza da ação" id="naturezaGroup">
           <label class="choice">
             <input type="radio" name="natureza" value="civel" data-required>
             <span class="choice-body">
@@ -189,15 +192,8 @@
           <label class="choice">
             <input type="radio" name="natureza" value="tributario">
             <span class="choice-body">
-              <b>Tributário / fiscal</b>
-              <em>Cautelar, execução fiscal e antecipatória</em>
-            </span>
-          </label>
-          <label class="choice">
-            <input type="radio" name="natureza" value="administrativo">
-            <span class="choice-body">
-              <b>Administrativo</b>
-              <em>Garantia para processo administrativo</em>
+              <b>Tributário / Fiscal / Administrativo</b>
+              <em>Cautelar, execução fiscal, antecipatória e processos administrativos</em>
             </span>
           </label>
           <label class="choice choice-wide">
