@@ -240,6 +240,14 @@ function sugerirNatureza(p) {
                      `então marcamos “${rotulo}”. Troque se a garantia for de outra natureza.`;
 }
 
+/* Preenche o Tribunal Regional a partir do número do processo — só quando
+   o campo ainda está vazio, pra nunca sobrescrever uma escolha manual */
+function sugerirTrt(p) {
+  const sel = $('#trt');
+  if (sel.value || !p.completo || p.segmento !== '5') return;
+  if (TRTS[p.tribunal]) sel.value = p.tribunal;
+}
+
 /* ───────────────────────────────────────────────────────────────
    5 · CONSULTA DE CNPJ EM BASE PÚBLICA
    BrasilAPI como primária; CNPJ.ws como reserva.
@@ -558,7 +566,10 @@ function aplicarNatureza() {
   alterna('#valorCausa', !!nat && !recursal);
   alterna('#indice', !!nat);
   alterna('#objetivo', !!nat);
-  ['#enquadramento', '#trt'].forEach(s => alterna(s, recursal));
+  alterna('#enquadramento', recursal);
+  /* Tribunal Regional: obrigatoriedade e visibilidade já vêm do [data-only]
+     acima (trabalhista + recursal); só falta destravar o valor herdado
+     quando a pessoa sai dessas naturezas, algo que o [data-only] já faz. */
   $$('input[name="tipoRecurso"]').forEach(r => {
     if (recursal) r.setAttribute('data-required', '');
     else r.removeAttribute('data-required');
@@ -859,14 +870,14 @@ function coletar() {
       tribunal: nomeTribunal(p) || '',
       ano: p.ano,
       juizo: $('#juizoNome').value.trim(),
-      numeroAdministrativo: $('#numAdministrativo').value.trim()
+      numeroAdministrativo: $('#numAdministrativo').value.trim(),
+      tribunalRegional: trtSel.value ? trtSel.options[trtSel.selectedIndex].text : ''
     },
     garantia: recursal ? {
       tipoRecurso: recursal ? depositoDeTabela().rotulo : '',
       depositoTabela: recursal ? depositoDeTabela().cents : null,
       dispensaSumular: $('#ai8').checked,
       enquadramento: ENQUADRAMENTO[enqKey].rotulo,
-      trt: trtSel.value ? trtSel.options[trtSel.selectedIndex].text : '',
       vara: $('#juizoNome').value.trim(),
       add30: $('#add30Recursal').checked,
       ajusteManual: centavosDe($('#valorGarantiaManual')) || null,
@@ -925,7 +936,8 @@ function montarConferencia(d) {
     linhaRevisao('Tribunal', d.processo.tribunal),
     linhaRevisao('Juízo / vara', d.processo.juizo),
     linhaRevisao('Natureza', d.naturezaRotulo),
-    linhaRevisao('Número do processo administrativo', d.processo.numeroAdministrativo, 'mono')
+    linhaRevisao('Número do processo administrativo', d.processo.numeroAdministrativo, 'mono'),
+    linhaRevisao('Tribunal Regional', d.processo.tribunalRegional)
   ]));
 
   if (d.natureza === 'recursal') {
@@ -935,7 +947,6 @@ function montarConferencia(d) {
         d.garantia.depositoTabela != null ? money(d.garantia.depositoTabela) : '', 'is-money'),
       linhaRevisao('Enquadramento', d.garantia.enquadramento),
       linhaRevisao('Acréscimo de 30%', d.garantia.add30 ? 'sim' : 'não'),
-      linhaRevisao('Tribunal Regional', d.garantia.trt),
       linhaRevisao('Importância segurada', money(d.garantia.importanciaSegurada), 'is-money')
     ]));
   } else {
@@ -1117,7 +1128,9 @@ function ligarMascaras() {
   /* número do processo */
   $('#processo').addEventListener('input', (e) => {
     e.target.value = maskCnj(e.target.value);
-    sugerirNatureza(renderDecoder());
+    const p = renderDecoder();
+    sugerirNatureza(p);
+    sugerirTrt(p);
   });
 
   /* valores em reais */
