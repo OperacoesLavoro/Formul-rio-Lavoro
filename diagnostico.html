@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagnóstico da consulta ao CNJ — Lavoro Seguros</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:#0e2c40; --brand:#00b7f0; --brand-deep:#0089b8; --paper:#fff;
+    --field:#f7fafc; --rule:#dae5ec; --muted:#5c7183;
+    --ok:#0b6e55; --erro:#a8302a; --aviso:#9a5b06;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  * { box-sizing:border-box }
+  body { margin:0; padding:28px 20px 60px; background:#dfe8ee;
+         font:15px/1.55 'IBM Plex Sans','Segoe UI',system-ui,sans-serif; color:#123a54 }
+  .wrap { max-width:840px; margin:0 auto }
+  h1 { font-family:Archivo,sans-serif; font-size:26px; letter-spacing:-.02em;
+       color:var(--ink); margin:0 0 6px }
+  .lede { margin:0 0 24px; color:var(--muted); font-size:14px }
+  .card { background:var(--paper); border:1px solid var(--rule); border-radius:10px;
+          padding:22px 24px; margin-bottom:16px;
+          box-shadow:0 1px 2px rgba(14,44,64,.05) }
+  .eyebrow { font-family:var(--mono); font-size:10.5px; letter-spacing:.16em;
+             text-transform:uppercase; color:var(--brand-deep); display:block; margin-bottom:10px }
+  .passo { display:grid; grid-template-columns:26px 1fr; gap:12px;
+           padding:13px 0; border-bottom:1px dotted var(--rule) }
+  .passo:last-child { border-bottom:0 }
+  .marca { font-family:var(--mono); font-size:15px; font-weight:500; line-height:1.4 }
+  .m-ok { color:var(--ok) } .m-erro { color:var(--erro) }
+  .m-aviso { color:var(--aviso) } .m-espera { color:#a9bac4 }
+  .passo b { display:block; font-size:14px; color:var(--ink) }
+  .passo p { margin:3px 0 0; font-size:13px; color:var(--muted) }
+  .passo code { font-family:var(--mono); font-size:12.5px; background:var(--field);
+                padding:1px 5px; border-radius:3px; word-break:break-all }
+  .conserto { margin:8px 0 0; padding:10px 13px; background:#fdf4e6;
+              border-left:2px solid var(--aviso); border-radius:0 4px 4px 0;
+              font-size:13px; color:#6b4405 }
+  .conserto b { display:inline; color:#6b4405 }
+  pre { margin:12px 0 0; padding:14px; background:var(--ink); color:#cfe9f5;
+        border-radius:6px; overflow-x:auto; font-family:var(--mono);
+        font-size:12px; line-height:1.5 }
+  label { display:block; font-size:12.5px; font-weight:500; margin:0 0 6px; color:#2b4c63 }
+  input { width:100%; padding:11px 13px; font-family:var(--mono); font-size:14px;
+          border:1px solid var(--rule); border-radius:6px; color:var(--ink) }
+  input:focus { outline:none; border-color:var(--brand);
+                box-shadow:0 0 0 3px rgba(0,183,240,.16) }
+  .linha { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap }
+  .linha > div { flex:1 1 260px }
+  button { padding:12px 22px; font-family:Archivo,sans-serif; font-size:13.5px;
+           font-weight:600; letter-spacing:.03em; color:#fff; background:var(--ink);
+           border:0; border-radius:6px; cursor:pointer }
+  button:hover { background:#123a54 }
+  button:disabled { background:#b6c6d1; cursor:progress }
+  .exemplos { margin:12px 0 0; font-size:12.5px; color:var(--muted) }
+  .exemplos button { padding:5px 10px; font-family:var(--mono); font-size:11.5px;
+                     font-weight:400; background:var(--field); color:var(--ink);
+                     border:1px solid var(--rule); margin:4px 4px 0 0 }
+  .exemplos button:hover { background:var(--ink); color:#fff }
+  .volta { display:inline-block; margin-top:10px; font-size:13px; color:var(--brand-deep) }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Diagnóstico da consulta ao CNJ</h1>
+  <p class="lede">Verifica a configuração do serviço no mesmo endereço do formulário.</p>
+  <div class="card">
+    <button id="btnStatus" type="button">Verificar configuração</button>
+    <pre id="saida" role="status">Aguardando verificação.</pre>
+    <p>Esta verificação não consulta processos e não confirma a validade da chave no CNJ.
+    Para testar a consulta completa, informe um processo no formulário.</p>
+    <a class="volta" href="/">← voltar ao formulário</a>
+  </div>
+</div>
+<script src="diagnostico.js"></script>
+</body>
+</html>

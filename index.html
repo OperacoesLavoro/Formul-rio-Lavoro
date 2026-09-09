@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Formulário Seguro Garantia Judicial — Lavoro Seguros</title>
+<meta name="description" content="Formulário de cotação de seguro garantia judicial da Lavoro Seguros.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<a class="skip" href="#form">Ir para o formulário</a>
+
+<div class="backdrop" aria-hidden="true"></div>
+
+<div class="sheet">
+
+  <!-- ══ MASTHEAD ══════════════════════════════════════════════ -->
+  <header class="masthead">
+    <img class="masthead-logo" src="Logo_Lavoro%20(Branca).png" alt="Lavoro Seguros">
+    <div class="masthead-title">
+      <h1>Formulário Seguro Garantia</h1>
+      <p>Garantia judicial e recursal &middot; proposta de cotação</p>
+    </div>
+    <div class="gauge" id="gauge">
+      <span class="gauge-num" id="gaugeNum">0</span>
+      <span class="gauge-label">de <b id="gaugeTotal">0</b><br>obrigatórios</span>
+    </div>
+  </header>
+
+  <div class="body">
+
+    <!-- ══ ÍNDICE ═══════════════════════════════════════════════ -->
+    <nav class="index" aria-label="Seções do formulário">
+      <ol id="indexList">
+        <li><a href="#s1" data-idx="s1"><span class="ix-n">01</span><span class="ix-t">Partes</span></a></li>
+        <li><a href="#s2" data-idx="s2"><span class="ix-n">02</span><span class="ix-t">Processo</span></a></li>
+        <li><a href="#s3" data-idx="s3"><span class="ix-n">03</span><span class="ix-t">Natureza da ação</span></a></li>
+        <li><a href="#s4" data-idx="s4"><span class="ix-n">04</span><span class="ix-t">Garantia</span></a></li>
+        <li><a href="#s5" data-idx="s5"><span class="ix-n">05</span><span class="ix-t">Vigência e risco</span></a></li>
+        <li><a href="#s6" data-idx="s6"><span class="ix-n">06</span><span class="ix-t">Advogado</span></a></li>
+      </ol>
+      <p class="index-note">Os dados de CNPJ e de processo são buscados em bases públicas. Confira sempre antes de enviar.</p>
+    </nav>
+
+    <!-- ══ FORMULÁRIO ═══════════════════════════════════════════ -->
+    <form class="form" id="form" novalidate>
+
+      <!-- ── 01 PARTES ─────────────────────────────────────────── -->
+      <section class="block" id="s1">
+        <div class="block-head">
+          <span class="eyebrow">Seção 01</span>
+          <h2>Partes</h2>
+          <p class="block-sub">O autor é o segurado; o réu é o tomador da garantia.</p>
+        </div>
+
+        <fieldset class="party">
+          <legend>Autor <em>&middot; segurado</em></legend>
+
+          <div class="row">
+            <div class="field field-auto">
+              <span class="label">Natureza</span>
+              <div class="segmented" role="radiogroup" aria-label="Natureza do autor">
+                <label><input type="radio" name="autorTipo" value="PJ" checked><span>Pessoa jurídica</span></label>
+                <label><input type="radio" name="autorTipo" value="PF"><span>Pessoa física</span></label>
+              </div>
+            </div>
+
+            <div class="field field-doc">
+              <label class="label" for="autorDoc">
+                <span data-doclabel="autor">CNPJ</span> <b class="req">obrigatório</b>
+              </label>
+              <div class="lookup">
+                <input class="input mono" id="autorDoc" name="autorDoc" inputmode="numeric"
+                       autocomplete="off" placeholder="00.000.000/0000-00" data-required>
+                <button class="btn-lookup" type="button" id="autorBuscar" data-lookup="autor">Buscar</button>
+              </div>
+              <p class="hint" data-status="autor" role="status"></p>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="label" for="autorNome">Nome / Razão social <b class="req">obrigatório</b></label>
+            <input class="input" id="autorNome" name="autorNome" autocomplete="off" data-required>
+          </div>
+
+          <div class="field">
+            <label class="label" for="autorEndereco">Endereço <b class="req">obrigatório</b></label>
+            <input class="input" id="autorEndereco" name="autorEndereco" autocomplete="off" data-required
+                   placeholder="Logradouro, nº, complemento — bairro — município/UF — CEP">
+          </div>
+        </fieldset>
+
+        <fieldset class="party">
+          <legend>Réu <em>&middot; tomador</em></legend>
+          <p class="fieldset-note">Sempre pessoa jurídica. Basta o CNPJ — razão social e endereço vêm do cartão&nbsp;CNPJ.</p>
+
+          <div class="field field-doc">
+            <label class="label" for="reuDoc">CNPJ <b class="req">obrigatório</b></label>
+            <div class="lookup">
+              <input class="input mono" id="reuDoc" name="reuDoc" inputmode="numeric"
+                     autocomplete="off" placeholder="00.000.000/0000-00" data-required>
+              <button class="btn-lookup" type="button" id="reuBuscar" data-lookup="reu">Buscar</button>
+            </div>
+            <p class="hint" data-status="reu" role="status"></p>
+          </div>
+
+          <div class="field">
+            <label class="label" for="reuNome">Razão social <b class="req">obrigatório</b></label>
+            <input class="input" id="reuNome" name="reuNome" autocomplete="off" data-required>
+          </div>
+
+          <div class="field">
+            <label class="label" for="reuEndereco">Endereço <b class="req">obrigatório</b></label>
+            <input class="input" id="reuEndereco" name="reuEndereco" autocomplete="off" data-required>
+          </div>
+        </fieldset>
+      </section>
+
+      <!-- ── 02 PROCESSO ───────────────────────────────────────── -->
+      <section class="block" id="s2">
+        <div class="block-head">
+          <span class="eyebrow">Seção 02</span>
+          <h2>Processo</h2>
+          <p class="block-sub">Digite o número uma vez e confirme. O número CNJ identifica sozinho o tribunal, o ano e o ramo da Justiça.</p>
+        </div>
+
+        <div class="row row-2">
+          <div class="field">
+            <label class="label" for="processo">Número do processo <b class="req">obrigatório</b></label>
+            <input class="input mono input-cnj" id="processo" name="processo" inputmode="numeric"
+                   autocomplete="off" placeholder="0000000-00.0000.0.00.0000" data-required>
+          </div>
+          <div class="field">
+            <label class="label" for="processoConf">Confirmação do número <b class="req">obrigatório</b></label>
+            <input class="input mono input-cnj" id="processoConf" name="processoConf" inputmode="numeric"
+                   autocomplete="off" placeholder="repita o número" data-required data-selfcheck>
+            <p class="hint" id="confStatus" role="status"></p>
+          </div>
+        </div>
+
+        <!-- ★ elemento-assinatura: decodificador CNJ -->
+        <div class="decoder" id="decoder" aria-live="polite">
+          <div class="decoder-strip">
+            <div class="seg" data-seg="sequencial"><span class="seg-v">·······</span><span class="seg-k">Sequencial</span></div>
+            <div class="seg seg-sm" data-seg="digito"><span class="seg-v">··</span><span class="seg-k">Díg.</span></div>
+            <div class="seg seg-sm" data-seg="ano"><span class="seg-v">····</span><span class="seg-k">Ano</span></div>
+            <div class="seg seg-sm" data-seg="segmento"><span class="seg-v">·</span><span class="seg-k">Ramo</span></div>
+            <div class="seg seg-sm" data-seg="tribunal"><span class="seg-v">··</span><span class="seg-k">Tribunal</span></div>
+            <div class="seg" data-seg="origem"><span class="seg-v">····</span><span class="seg-k">Origem</span></div>
+          </div>
+          <div class="decoder-read">
+            <p class="decoder-line" id="decoderRead">Aguardando o número do processo.</p>
+            <span class="pill" id="decoderPill" hidden></span>
+          </div>
+        </div>
+
+        <div class="row row-2">
+          <div class="field">
+            <label class="label" for="juizoNome">Juízo / vara <b class="req">obrigatório</b></label>
+            <input class="input" id="juizoNome" name="juizoNome" autocomplete="off" data-required
+                   placeholder="ex.: 4ª Vara do Trabalho de São Paulo">
+          </div>
+          <div class="field">
+            <label class="label" for="juizoCnpj">CNPJ do juízo <span class="opt">opcional</span></label>
+            <div class="lookup">
+              <input class="input mono" id="juizoCnpj" name="juizoCnpj" inputmode="numeric"
+                     autocomplete="off" placeholder="00.000.000/0000-00">
+              <button class="btn-lookup" type="button" id="juizoBuscar" data-lookup="juizo">Buscar</button>
+            </div>
+            <p class="hint" data-status="juizo" role="status"></p>
+          </div>
+        </div>
+
+        <div class="datajud">
+          <button class="btn-ghost" type="button" id="btnDataJud">Consultar processo na base do CNJ</button>
+          <p class="hint" id="dataJudStatus" role="status">Traz classe, assunto, órgão julgador e movimentações da API Pública do DataJud.</p>
+        </div>
+      </section>
+
+      <!-- ── 03 NATUREZA ───────────────────────────────────────── -->
+      <section class="block" id="s3">
+        <div class="block-head">
+          <span class="eyebrow">Seção 03</span>
+          <h2>Natureza da ação</h2>
+          <p class="block-sub">Isto define quais campos a seção 04 pede.</p>
+        </div>
+
+        <div class="choices" role="radiogroup" aria-label="Natureza da ação" id="naturezaGroup">
+          <label class="choice">
+            <input type="radio" name="natureza" value="civel" data-required>
+            <span class="choice-body">
+              <b>Cível</b>
+              <em>Garantia para processo cível</em>
+            </span>
+          </label>
+          <label class="choice">
+            <input type="radio" name="natureza" value="trabalhista">
+            <span class="choice-body">
+              <b>Execução trabalhista</b>
+              <em>Garantia de execução na Justiça do Trabalho</em>
+            </span>
+          </label>
+          <label class="choice">
+            <input type="radio" name="natureza" value="tributario">
+            <span class="choice-body">
+              <b>Tributário / fiscal</b>
+              <em>Cautelar, execução fiscal e antecipatória</em>
+            </span>
+          </label>
+          <label class="choice">
+            <input type="radio" name="natureza" value="administrativo">
+            <span class="choice-body">
+              <b>Administrativo</b>
+              <em>Garantia para processo administrativo</em>
+            </span>
+          </label>
+          <label class="choice choice-wide">
+            <input type="radio" name="natureza" value="recursal">
+            <span class="choice-body">
+              <b>Recursal &mdash; depósito recursal</b>
+              <em>Substituição do depósito recursal trabalhista por seguro garantia (CLT, art.&nbsp;899, §&nbsp;11)</em>
+            </span>
+          </label>
+        </div>
+        <p class="hint hint-suggest" id="naturezaHint" hidden></p>
+      </section>
+
+      <!-- ── 04 GARANTIA ───────────────────────────────────────── -->
+      <section class="block" id="s4">
+        <div class="block-head">
+          <span class="eyebrow">Seção 04</span>
+          <h2>Garantia</h2>
+          <p class="block-sub" id="garantiaSub">Escolha a natureza da ação na seção 03 para abrir os campos da garantia.</p>
+        </div>
+
+        <p class="empty" id="garantiaEmpty">Nenhuma natureza selecionada.</p>
+
+        <!-- ...... 04-A · via padrão ...... -->
+        <div class="branch" id="blocoPadrao" hidden>
+          <div class="field field-money">
+            <label class="label" for="valorCausa">Valor da causa <b class="req">obrigatório</b></label>
+            <input class="input mono input-money" id="valorCausa" name="valorCausa"
+                   inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" data-required>
+          </div>
+
+          <label class="switch">
+            <input type="checkbox" id="add30Padrao" name="add30Padrao">
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-text">
+              <b>Acrescer 30%</b>
+              <em>Atualizações, encargos e honorários — conforme o valor homologado atualizado&nbsp;+&nbsp;30%.</em>
+            </span>
+          </label>
+
+          <!-- razão de ser: os dois valores ficam sempre visíveis -->
+          <div class="ledger" id="ledgerPadrao">
+            <div class="ledger-row">
+              <span class="ledger-k">Valor da causa</span>
+              <span class="ledger-v mono" data-ledger="base">R$ 0,00</span>
+            </div>
+            <div class="ledger-row" data-ledger-row="acr">
+              <span class="ledger-k">Acréscimo de 30%</span>
+              <span class="ledger-v mono" data-ledger="acrescimo">—</span>
+            </div>
+            <div class="ledger-row ledger-total">
+              <span class="ledger-k">Importância segurada</span>
+              <span class="ledger-v mono" data-ledger="total">R$ 0,00</span>
+            </div>
+            <p class="ledger-foot" data-ledger="foot">Sem acréscimo. A importância segurada é igual ao valor da causa.</p>
+          </div>
+
+          <div class="row row-2">
+            <div class="field" data-only="tributario administrativo" hidden>
+              <label class="label" for="numAdministrativo">
+                Procedimento administrativo nº <b class="req">obrigatório</b>
+              </label>
+              <input class="input mono" id="numAdministrativo" name="numAdministrativo" autocomplete="off">
+            </div>
+            <div class="field">
+              <label class="label" for="numAutoInfracao">Auto de infração nº <span class="opt">opcional</span></label>
+              <input class="input mono" id="numAutoInfracao" name="numAutoInfracao" autocomplete="off">
+            </div>
+          </div>
+
+          <div class="field" data-only="tributario" hidden>
+            <label class="label" for="linhaDefesa">
+              Linha de defesa a ser sustentada <b class="req">obrigatório</b>
+            </label>
+            <textarea class="input textarea" id="linhaDefesa" name="linhaDefesa" rows="4"
+                      placeholder="Tese central da defesa na esfera fiscal."></textarea>
+            <p class="hint">Exigida apenas na garantia judicial fiscal.</p>
+          </div>
+
+          <div class="field">
+            <label class="label" for="historico">Histórico do processo <span class="opt">opcional</span></label>
+            <textarea class="input textarea" id="historico" name="historico" rows="5"
+                      placeholder="Andamento relevante até aqui. A consulta ao CNJ na seção 02 preenche este campo."></textarea>
+          </div>
+        </div>
+
+        <!-- ...... 04-B · via recursal ...... -->
+        <div class="branch" id="blocoRecursal" hidden>
+          <p class="branch-note" id="recursalFonte">Tabela de depósito recursal em carregamento.</p>
+
+          <div class="field">
+            <span class="label">Tipo de recurso <b class="req">obrigatório</b></span>
+            <div class="choices choices-tight" role="radiogroup" aria-label="Tipo de recurso" id="recursoGroup">
+              <!-- preenchido por app.js a partir da tabela do TST -->
+            </div>
+          </div>
+
+          <!-- o agravo de instrumento não tem valor próprio: é metade do recurso destrancado -->
+          <div class="subform" id="aiSub" hidden>
+            <p class="subform-head">Agravo de instrumento &middot; CLT, art. 899, §§ 7º e 8º</p>
+            <div class="field">
+              <label class="label" for="aiDestranca">Recurso que se pretende destrancar <b class="req">obrigatório</b></label>
+              <select class="input select" id="aiDestranca" name="aiDestranca">
+                <option value="">Selecione</option>
+                <option value="ro">Recurso Ordinário</option>
+                <option value="rr">Recurso de Revista</option>
+                <option value="emb">Embargos</option>
+                <option value="ar">Recurso em Ação Rescisória</option>
+              </select>
+              <p class="hint">O depósito do agravo é metade do depósito deste recurso.</p>
+            </div>
+            <label class="switch switch-flat">
+              <input type="checkbox" id="ai8" name="ai8">
+              <span class="switch-track" aria-hidden="true"></span>
+              <span class="switch-text">
+                <b>Contraria jurisprudência uniforme do TST</b>
+                <em>Súmula ou orientação jurisprudencial do TST — dispensa o depósito do § 7º.</em>
+              </span>
+            </label>
+          </div>
+
+          <div class="row row-2">
+            <div class="field">
+              <label class="label" for="enquadramento">Enquadramento do recorrente <b class="req">obrigatório</b></label>
+              <select class="input select" id="enquadramento" name="enquadramento">
+                <option value="integral">Integral — 100% do depósito</option>
+                <option value="meio">Metade — entidade sem fins lucrativos, empregador doméstico, MEI, ME ou EPP</option>
+                <option value="isento10">Isento — justiça gratuita, entidade filantrópica ou recuperação judicial</option>
+                <option value="isento86">Isento — massa falida</option>
+              </select>
+              <p class="hint">Metade pelo § 9º; isenção pelo § 10 da CLT ou pela Súmula 86 do TST.</p>
+            </div>
+            <div class="field">
+              <label class="label" for="trt">Tribunal Regional do Trabalho <b class="req">obrigatório</b></label>
+              <select class="input select" id="trt" name="trt">
+                <option value="">Selecione</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="label" for="varaTrabalho">Vara do trabalho <b class="req">obrigatório</b></label>
+            <input class="input" id="varaTrabalho" name="varaTrabalho" autocomplete="off"
+                   placeholder="ex.: 12ª Vara do Trabalho de Belo Horizonte">
+          </div>
+
+          <label class="switch">
+            <input type="checkbox" id="add30Recursal" name="add30Recursal">
+            <span class="switch-track" aria-hidden="true"></span>
+            <span class="switch-text">
+              <b>Acrescer 30%</b>
+              <em>Margem para atualização do depósito até o julgamento do recurso.</em>
+            </span>
+          </label>
+
+          <div class="ledger" id="ledgerRecursal">
+            <div class="ledger-row">
+              <span class="ledger-k">Depósito recursal de tabela</span>
+              <span class="ledger-v mono" data-ledger="base">R$ 0,00</span>
+            </div>
+            <div class="ledger-row" data-ledger-row="enq">
+              <span class="ledger-k" data-ledger="enqK">Enquadramento</span>
+              <span class="ledger-v mono" data-ledger="enq">—</span>
+            </div>
+            <div class="ledger-row" data-ledger-row="acr">
+              <span class="ledger-k">Acréscimo de 30%</span>
+              <span class="ledger-v mono" data-ledger="acrescimo">—</span>
+            </div>
+            <div class="ledger-row ledger-total">
+              <span class="ledger-k">Importância segurada</span>
+              <span class="ledger-v mono" data-ledger="total">R$ 0,00</span>
+            </div>
+            <p class="ledger-foot" data-ledger="foot">Selecione o tipo de recurso para calcular.</p>
+          </div>
+
+          <div class="field">
+            <label class="label" for="valorGarantiaManual">
+              Ajustar a importância segurada <span class="opt">opcional</span>
+            </label>
+            <input class="input mono input-money" id="valorGarantiaManual" name="valorGarantiaManual"
+                   inputmode="decimal" autocomplete="off" placeholder="deixe vazio para usar o cálculo acima">
+            <p class="hint">Use apenas se o juízo fixou valor diferente do de tabela.</p>
+          </div>
+        </div>
+
+        <!-- ...... comuns às duas vias ...... -->
+        <div class="branch" id="blocoComum" hidden>
+          <div class="field">
+            <label class="label" for="indice">Índice de reajuste <b class="req">obrigatório</b></label>
+            <select class="input select" id="indice" name="indice">
+              <option value="">Selecione o índice</option>
+              <option value="IPCA">IPCA — Índice Nacional de Preços ao Consumidor Amplo</option>
+              <option value="IPCA-E">IPCA-E — IPCA Especial</option>
+              <option value="IGP-M">IGP-M — Índice Geral de Preços do Mercado</option>
+              <option value="INPC">INPC — Índice Nacional de Preços ao Consumidor</option>
+              <option value="TR">TR — Taxa Referencial</option>
+              <option value="SELIC">SELIC — taxa básica de juros</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="label" for="objetivo">Objetivo da garantia <b class="req">obrigatório</b></label>
+            <textarea class="input textarea" id="objetivo" name="objetivo" rows="3"
+                      placeholder="O que a apólice precisa garantir e perante qual juízo."></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 05 VIGÊNCIA E RISCO ───────────────────────────────── -->
+      <section class="block" id="s5">
+        <div class="block-head">
+          <span class="eyebrow">Seção 05</span>
+          <h2>Vigência e risco</h2>
+          <p class="block-sub">Prazo mínimo de 3 anos. Na garantia fiscal, 5 anos.</p>
+        </div>
+
+        <div class="row row-3">
+          <div class="field">
+            <label class="label" for="vigInicio">Início de vigência <b class="req">obrigatório</b></label>
+            <input class="input" type="date" id="vigInicio" name="vigInicio" data-required>
+          </div>
+          <div class="field">
+            <label class="label" for="vigAnos">Prazo <b class="req">obrigatório</b></label>
+            <select class="input select" id="vigAnos" name="vigAnos" data-required>
+              <option value="">Selecione</option>
+              <option value="3">3 anos</option>
+              <option value="4">4 anos</option>
+              <option value="5">5 anos</option>
+              <option value="6">6 anos</option>
+              <option value="10">10 anos</option>
+            </select>
+            <p class="hint" id="vigHint"></p>
+          </div>
+          <div class="field">
+            <span class="label">Fim de vigência</span>
+            <output class="readout mono" id="vigFim">—</output>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label">Probabilidade de êxito <b class="req">obrigatório</b></span>
+          <div class="choices choices-tight choices-3" role="radiogroup" aria-label="Probabilidade de êxito">
+            <label class="choice">
+              <input type="radio" name="exito" value="Provável" data-required>
+              <span class="choice-body"><b>Provável</b><em>Êxito mais que provável</em></span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="exito" value="Possível">
+              <span class="choice-body"><b>Possível</b><em>Êxito incerto</em></span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="exito" value="Remota">
+              <span class="choice-body"><b>Remota</b><em>Êxito improvável</em></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 06 ADVOGADO ───────────────────────────────────────── -->
+      <section class="block" id="s6">
+        <div class="block-head">
+          <span class="eyebrow">Seção 06</span>
+          <h2>Advogado responsável</h2>
+        </div>
+
+        <div class="row row-3">
+          <div class="field field-grow">
+            <label class="label" for="advNome">Nome <b class="req">obrigatório</b></label>
+            <input class="input" id="advNome" name="advNome" autocomplete="off" data-required>
+          </div>
+          <div class="field">
+            <label class="label" for="advOab">Inscrição na OAB <b class="req">obrigatório</b></label>
+            <input class="input mono" id="advOab" name="advOab" autocomplete="off" placeholder="000.000" data-required>
+          </div>
+          <div class="field">
+            <label class="label" for="advUf">Estado <b class="req">obrigatório</b></label>
+            <select class="input select" id="advUf" name="advUf" data-required>
+              <option value="">UF</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── AÇÃO ──────────────────────────────────────────────── -->
+      <footer class="actions">
+        <p class="actions-note" id="actionsNote">Preencha os campos obrigatórios para revisar.</p>
+        <div class="actions-btns">
+          <button class="btn-quiet" type="button" id="btnLimpar">Limpar formulário</button>
+          <button class="btn" type="submit" id="btnRevisar">Revisar e enviar</button>
+        </div>
+      </footer>
+    </form>
+  </div>
+
+  <p class="colophon">
+    Lavoro Seguros &middot; formulário de cotação de seguro garantia judicial
+    <span class="colophon-sep">/</span> amostra de interface
+  </p>
+</div>
+
+<!-- ══ CONFERÊNCIA ════════════════════════════════════════════ -->
+<div class="scrim" id="scrim" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" id="modal">
+    <header class="modal-head">
+      <span class="eyebrow eyebrow-warn">Antes de enviar</span>
+      <h2 id="modalTitle">Confira os dados</h2>
+      <p>Parte destes campos vieram de bases públicas. A proposta segue para subscrição com o que estiver aqui.</p>
+    </header>
+
+    <div class="modal-body" id="modalBody" tabindex="-1"></div>
+
+    <footer class="modal-foot">
+      <label class="check">
+        <input type="checkbox" id="confirmCheck">
+        <span>Revisei os dados e confirmo que estão corretos.</span>
+      </label>
+      <div class="modal-btns">
+        <button class="btn-quiet" type="button" id="btnVoltar">Voltar e corrigir</button>
+        <button class="btn" type="button" id="btnEnviar" disabled>Enviar proposta</button>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<!-- ══ RECIBO ═════════════════════════════════════════════════ -->
+<div class="scrim" id="scrimOk" hidden>
+  <div class="modal modal-ok" role="dialog" aria-modal="true" aria-labelledby="okTitle">
+    <header class="modal-head">
+      <span class="eyebrow">Protocolo</span>
+      <h2 id="okTitle">Proposta registrada</h2>
+      <p>Amostra de interface — nada foi transmitido. O protocolo abaixo é gerado localmente.</p>
+    </header>
+    <div class="modal-body">
+      <div class="ledger">
+        <div class="ledger-row">
+          <span class="ledger-k">Protocolo</span>
+          <span class="ledger-v mono" id="okProtocolo">—</span>
+        </div>
+        <div class="ledger-row">
+          <span class="ledger-k">Processo</span>
+          <span class="ledger-v mono" id="okProcesso">—</span>
+        </div>
+        <div class="ledger-row ledger-total">
+          <span class="ledger-k">Importância segurada</span>
+          <span class="ledger-v mono" id="okValor">—</span>
+        </div>
+      </div>
+    </div>
+    <footer class="modal-foot">
+      <div class="modal-btns">
+        <button class="btn-quiet" type="button" id="btnBaixar">Baixar dados (JSON)</button>
+        <button class="btn" type="button" id="btnFechar">Fechar</button>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
