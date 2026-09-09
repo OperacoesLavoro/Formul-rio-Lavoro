@@ -25,10 +25,6 @@
       <h1>Formulário Seguro Garantia</h1>
       <p>Garantia judicial e recursal &middot; proposta de cotação</p>
     </div>
-    <div class="gauge" id="gauge">
-      <span class="gauge-num" id="gaugeNum">0</span>
-      <span class="gauge-label">de <b id="gaugeTotal">0</b><br>obrigatórios</span>
-    </div>
   </header>
 
   <div class="body">
@@ -125,7 +121,7 @@
         <div class="block-head">
           <span class="eyebrow">Seção 02</span>
           <h2>Processo</h2>
-          <p class="block-sub">Digite o número uma vez e confirme. O número CNJ identifica sozinho o tribunal, o ano e o ramo da Justiça.</p>
+          <p class="block-sub">Informe e confirme o número do processo. Consulte o CNJ para preencher o juízo e o histórico de movimentações.</p>
         </div>
 
         <div class="row row-2">
@@ -142,42 +138,25 @@
           </div>
         </div>
 
-        <!-- ★ elemento-assinatura: decodificador CNJ -->
-        <div class="decoder" id="decoder" aria-live="polite">
-          <div class="decoder-strip">
-            <div class="seg" data-seg="sequencial"><span class="seg-v">·······</span><span class="seg-k">Sequencial</span></div>
-            <div class="seg seg-sm" data-seg="digito"><span class="seg-v">··</span><span class="seg-k">Díg.</span></div>
-            <div class="seg seg-sm" data-seg="ano"><span class="seg-v">····</span><span class="seg-k">Ano</span></div>
-            <div class="seg seg-sm" data-seg="segmento"><span class="seg-v">·</span><span class="seg-k">Ramo</span></div>
-            <div class="seg seg-sm" data-seg="tribunal"><span class="seg-v">··</span><span class="seg-k">Tribunal</span></div>
-            <div class="seg" data-seg="origem"><span class="seg-v">····</span><span class="seg-k">Origem</span></div>
+        <div class="process-context" id="decoder" role="status" aria-live="polite" hidden>
+          <div class="process-context-details">
+            <p class="process-tribunal" id="decoderRead"></p>
+            <p class="process-origin" id="decoderOrigin"></p>
           </div>
-          <div class="decoder-read">
-            <p class="decoder-line" id="decoderRead">Aguardando o número do processo.</p>
-            <span class="pill" id="decoderPill" hidden></span>
-          </div>
+          <span class="process-validation" id="decoderPill"></span>
         </div>
 
-        <div class="row row-2">
+        <div class="process-court">
           <div class="field">
             <label class="label" for="juizoNome">Juízo / vara <b class="req">obrigatório</b></label>
             <input class="input" id="juizoNome" name="juizoNome" autocomplete="off" data-required
                    placeholder="ex.: 4ª Vara do Trabalho de São Paulo">
           </div>
-          <div class="field">
-            <label class="label" for="juizoCnpj">CNPJ do juízo <span class="opt">opcional</span></label>
-            <div class="lookup">
-              <input class="input mono" id="juizoCnpj" name="juizoCnpj" inputmode="numeric"
-                     autocomplete="off" placeholder="00.000.000/0000-00">
-              <button class="btn-lookup" type="button" id="juizoBuscar" data-lookup="juizo">Buscar</button>
-            </div>
-            <p class="hint" data-status="juizo" role="status"></p>
-          </div>
+          <button class="btn-ghost" type="button" id="btnDataJud">Consultar no CNJ</button>
         </div>
 
         <div class="datajud">
-          <button class="btn-ghost" type="button" id="btnDataJud">Consultar processo na base do CNJ</button>
-          <p class="hint" id="dataJudStatus" role="status">Traz classe, assunto, órgão julgador e movimentações da API Pública do DataJud.</p>
+          <p class="hint" id="dataJudStatus" role="status">O juízo pode ser preenchido pela consulta ou informado manualmente.</p>
         </div>
       </section>
 
@@ -354,12 +333,6 @@
                 <option value="">Selecione</option>
               </select>
             </div>
-          </div>
-
-          <div class="field">
-            <label class="label" for="varaTrabalho">Vara do trabalho <b class="req">obrigatório</b></label>
-            <input class="input" id="varaTrabalho" name="varaTrabalho" autocomplete="off"
-                   placeholder="ex.: 12ª Vara do Trabalho de Belo Horizonte">
           </div>
 
           <label class="switch">

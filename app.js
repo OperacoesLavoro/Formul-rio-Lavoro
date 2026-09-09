@@ -191,51 +191,22 @@ function aliasDataJud(p) {
 
 function renderDecoder() {
   const p = parseCnj($('#processo').value);
-  const strip = $('#decoder');
-
-  const preenche = (key, valor, vazio) => {
-    const seg = $(`[data-seg="${key}"]`, strip);
-    const on = valor.length === vazio.length;
-    seg.classList.toggle('is-set', on);
-    $('.seg-v', seg).textContent = on ? valor : (valor + vazio.slice(valor.length));
-  };
-
-  preenche('sequencial', p.sequencial, '·······');
-  preenche('digito',     p.digito,     '··');
-  preenche('ano',        p.ano,        '····');
-  preenche('segmento',   p.segmento,   '·');
-  preenche('tribunal',   p.tribunal,   '··');
-  preenche('origem',     p.origem,     '····');
-
+  const resumo = $('#decoder');
   const read = $('#decoderRead');
+  const origin = $('#decoderOrigin');
   const pill = $('#decoderPill');
-
-  if (!p.segmento) {
-    read.textContent = 'Aguardando o número do processo.';
-    pill.hidden = true;
+  resumo.hidden = !p.completo;
+  if (!p.completo) {
+    read.textContent = '';
+    origin.textContent = '';
+    pill.textContent = '';
     return p;
   }
-
-  const partes = [];
-  const ramo = SEGMENTOS[p.segmento];
-  partes.push(ramo ? `<b>${ramo}</b>` : `Ramo <b>${p.segmento}</b> não reconhecido`);
-  if (p.tribunal.length === 2) {
-    const trib = nomeTribunal(p);
-    if (trib) partes.push(`<b>${trib}</b>`);
-  }
-  if (p.ano.length === 4) partes.push(`distribuído em <b>${p.ano}</b>`);
-  if (p.origem.length === 4) partes.push(`unidade de origem <b>${p.origem}</b>`);
-  read.innerHTML = partes.join(' &middot; ') + '.';
-
-  if (p.completo) {
-    const ok = digitoCnj(p) === p.digito;
-    pill.hidden = false;
-    pill.textContent = ok ? 'Dígito confere' : 'Confira o dígito';
-    pill.className = 'pill ' + (ok ? 'is-ok' : 'is-warn');
-  } else {
-    pill.hidden = true;
-  }
-
+  read.textContent = nomeTribunal(p) || 'Tribunal não identificado';
+  origin.textContent = `${SEGMENTOS[p.segmento] || 'Ramo não identificado'} · ${p.ano} · Unidade de origem ${p.origem}`;
+  const ok = digitoCnj(p) === p.digito;
+  pill.textContent = ok ? 'Dígito verificador válido' : 'Confira o dígito verificador';
+  pill.className = 'process-validation ' + (ok ? 'is-ok' : 'is-warn');
   return p;
 }
 
@@ -276,8 +247,7 @@ function sugerirNatureza(p) {
 
 const CAMPOS_PARTE = {
   autor: { doc: '#autorDoc', nome: '#autorNome', end: '#autorEndereco' },
-  reu:   { doc: '#reuDoc',   nome: '#reuNome',   end: '#reuEndereco'   },
-  juizo: { doc: '#juizoCnpj', nome: '#juizoNome', end: null            }
+  reu:   { doc: '#reuDoc',   nome: '#reuNome',   end: '#reuEndereco'   }
 };
 
 const limpar = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
@@ -586,7 +556,7 @@ function aplicarNatureza() {
   alterna('#valorCausa', !!nat && !recursal);
   alterna('#indice', !!nat);
   alterna('#objetivo', !!nat);
-  ['#enquadramento', '#trt', '#varaTrabalho'].forEach(s => alterna(s, recursal));
+  ['#enquadramento', '#trt'].forEach(s => alterna(s, recursal));
   $$('input[name="tipoRecurso"]').forEach(r => {
     if (recursal) r.setAttribute('data-required', '');
     else r.removeAttribute('data-required');
@@ -790,10 +760,6 @@ function atualizarMedidor() {
   const lista = Array.from(grupos.values());
   const ok = lista.filter(campoValido).length;
 
-  $('#gaugeNum').textContent = ok;
-  $('#gaugeTotal').textContent = lista.length;
-  $('#gauge').classList.toggle('is-complete', ok === lista.length && lista.length > 0);
-
   const faltam = lista.length - ok;
   const nota = $('#actionsNote');
   if (!naturezaAtual()) {
@@ -897,8 +863,7 @@ function coletar() {
       ramo: SEGMENTOS[p.segmento] || '',
       tribunal: nomeTribunal(p) || '',
       ano: p.ano,
-      juizo: $('#juizoNome').value.trim(),
-      juizoCnpj: $('#juizoCnpj').value.trim()
+      juizo: $('#juizoNome').value.trim()
     },
     garantia: recursal ? {
       tipoRecurso: recursal ? depositoDeTabela().rotulo : '',
@@ -906,7 +871,7 @@ function coletar() {
       dispensaSumular: $('#ai8').checked,
       enquadramento: ENQUADRAMENTO[enqKey].rotulo,
       trt: trtSel.value ? trtSel.options[trtSel.selectedIndex].text : '',
-      vara: $('#varaTrabalho').value.trim(),
+      vara: $('#juizoNome').value.trim(),
       add30: $('#add30Recursal').checked,
       ajusteManual: centavosDe($('#valorGarantiaManual')) || null,
       importanciaSegurada: total,
@@ -975,7 +940,6 @@ function montarConferencia(d) {
       linhaRevisao('Enquadramento', d.garantia.enquadramento),
       linhaRevisao('Acréscimo de 30%', d.garantia.add30 ? 'sim' : 'não'),
       linhaRevisao('Tribunal Regional', d.garantia.trt),
-      linhaRevisao('Vara do trabalho', d.garantia.vara),
       linhaRevisao('Importância segurada', money(d.garantia.importanciaSegurada), 'is-money')
     ]));
   } else {
@@ -1146,7 +1110,7 @@ function ligarMascaras() {
     if (!pf && digits(e.target.value).length === 14) buscarCnpj('autor');
   });
 
-  [['#reuDoc', 'reu'], ['#juizoCnpj', 'juizo']].forEach(([sel, parte]) => {
+  [['#reuDoc', 'reu']].forEach(([sel, parte]) => {
     $(sel).addEventListener('input', (e) => {
       e.target.value = maskCnpj(e.target.value);
       if (digits(e.target.value).length === 14) buscarCnpj(parte);
