@@ -846,6 +846,18 @@ body {
   background: var(--field-flat);
 }
 
+.signature-field {
+  position: relative; width: 100%; height: 190px; overflow: hidden;
+  background: #fff; border: 1px solid var(--rule); border-radius: var(--r-sm); touch-action: none;
+}
+.signature-field.is-invalid { border-color: #b84a46; box-shadow: 0 0 0 2px rgba(184,74,70,.12); }
+.signature-field canvas { position: relative; z-index: 2; display: block; width: 100%; height: 100%; cursor: crosshair; }
+.signature-line { position: absolute; z-index: 1; left: 9%; right: 9%; bottom: 42px; border-top: 1px solid #9dafba; }
+.signature-placeholder { position: absolute; z-index: 1; left: 0; right: 0; bottom: 17px; text-align: center; font-size: 11px; color: var(--muted-2); }
+.signature-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.signature-actions .hint { margin: 8px 0 0; }
+.review-signature { display: block; max-width: 260px; max-height: 90px; margin-top: 8px; border-bottom: 1px solid var(--rule); }
+
 @media (min-width: 700px) { .actions { padding: 26px 44px 30px; } }
 
 .actions-note {
@@ -1063,6 +1075,7 @@ body {
   .block:nth-of-type(4) { animation-delay: .24s; }
   .block:nth-of-type(5) { animation-delay: .27s; }
   .block:nth-of-type(6) { animation-delay: .3s; }
+  .block:nth-of-type(7) { animation-delay: .33s; }
 }
 
 @keyframes enter {

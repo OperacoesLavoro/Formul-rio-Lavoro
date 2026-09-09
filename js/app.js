@@ -1,8 +1,11 @@
 /* ═══════════════════════════════════════════════════════════════
    Formulário Seguro Garantia — Lavoro Seguros
-   Sem dependências. Tudo roda no navegador.
+   Assinatura e PDF processados localmente no navegador.
    ═══════════════════════════════════════════════════════════════ */
 'use strict';
+
+let assinatura = null;
+let protocoloAtual = '';
 
 /* ───────────────────────────────────────────────────────────────
    1 · TABELA DE DEPÓSITO RECURSAL
@@ -767,7 +770,7 @@ function atualizarMedidor() {
   const lista = Array.from(grupos.values());
   const ok = lista.filter(campoValido).length;
 
-  const faltam = lista.length - ok;
+  const faltam = lista.length - ok + (assinatura && !assinatura.isEmpty() ? 0 : 1);
   const nota = $('#actionsNote');
   if (!naturezaAtual()) {
     nota.textContent = 'Escolha a natureza da ação na seção 03 para abrir os campos da garantia.';
@@ -784,7 +787,7 @@ function atualizarMedidor() {
 }
 
 function marcarIndice() {
-  ['s1','s2','s3','s4','s5','s6'].forEach(id => {
+  ['s1','s2','s3','s4','s5','s6','s7'].forEach(id => {
     const sec = $('#' + id);
     const link = $(`.index a[data-idx="${id}"]`);
     if (!sec || !link) return;
@@ -798,7 +801,10 @@ function marcarIndice() {
       if (!grupos.has(k)) grupos.set(k, el);
     });
     const lista = Array.from(grupos.values());
-    link.classList.toggle('is-done', lista.length > 0 && lista.every(campoValido));
+    const completo = id === 's7'
+      ? Boolean(assinatura && !assinatura.isEmpty())
+      : lista.length > 0 && lista.every(campoValido);
+    link.classList.toggle('is-done', completo);
   });
 }
 
@@ -903,15 +909,22 @@ function coletar() {
       nome: $('#advNome').value.trim(),
       oab: $('#advOab').value.trim(),
       uf: $('#advUf').value
-    }
+    },
+    assinatura: assinatura && !assinatura.isEmpty() ? assinatura.toDataURL('image/png') : ''
   };
+}
+
+function escaparHtml(valor) {
+  return String(valor).replace(/[&<>'"]/g, caractere => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+  })[caractere]);
 }
 
 function linhaRevisao(k, v, classe) {
   const vazio = v === '' || v === null || v === undefined;
   return `<div class="review-item">
-      <span class="review-k">${k}</span>
-      <span class="review-v ${vazio ? 'is-empty' : (classe || '')}">${vazio ? 'não informado' : v}</span>
+      <span class="review-k">${escaparHtml(k)}</span>
+      <span class="review-v ${vazio ? 'is-empty' : (classe || '')}">${vazio ? 'não informado' : escaparHtml(v)}</span>
     </div>`;
 }
 
@@ -974,6 +987,9 @@ function montarConferencia(d) {
     linhaRevisao('Nome', d.advogado.nome),
     linhaRevisao('OAB', `${d.advogado.oab}${d.advogado.uf ? ' / ' + d.advogado.uf : ''}`, 'mono')
   ]));
+
+  blocos.push(`<div class="review-group"><h3>Assinatura</h3>
+    <img class="review-signature" src="${d.assinatura}" alt="Assinatura desenhada pelo responsável"></div>`);
 
   /* pontos que merecem um olhar antes de seguir */
   const avisos = [];
@@ -1162,13 +1178,84 @@ function ligarIndice() {
     });
   }, { rootMargin: '-25% 0px -65% 0px' });
 
-  ['s1','s2','s3','s4','s5','s6'].forEach(id => {
+  ['s1','s2','s3','s4','s5','s6','s7'].forEach(id => {
     const el = $('#' + id);
     if (el) obs.observe(el);
   });
 }
 
 /* ── eventos gerais ──────────────────────────────────────────── */
+
+function iniciarAssinatura() {
+  const canvas = $('#signatureCanvas');
+  const campo = $('#signatureField');
+  if (typeof SignaturePad !== 'function') {
+    $('#signatureStatus').textContent = 'Não foi possível carregar a área de assinatura.';
+    return;
+  }
+  assinatura = new SignaturePad(canvas, { minWidth: 0.8, maxWidth: 2.4, penColor: '#0e2c40' });
+  const redimensionar = () => {
+    const dados = assinatura.isEmpty() ? null : assinatura.toData();
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    canvas.width = Math.round(canvas.offsetWidth * ratio);
+    canvas.height = Math.round(canvas.offsetHeight * ratio);
+    canvas.getContext('2d').scale(ratio, ratio);
+    assinatura.clear();
+    if (dados) assinatura.fromData(dados);
+  };
+  redimensionar();
+  window.addEventListener('resize', redimensionar);
+  assinatura.addEventListener('endStroke', () => {
+    campo.classList.remove('is-invalid');
+    $('#signaturePlaceholder').hidden = true;
+    $('#signatureStatus').textContent = 'Assinatura registrada neste dispositivo.';
+    atualizarMedidor();
+  });
+  $('#btnLimparAssinatura').addEventListener('click', () => {
+    assinatura.clear();
+    $('#signaturePlaceholder').hidden = false;
+    $('#signatureStatus').textContent = 'A assinatura é obrigatória para enviar.';
+    atualizarMedidor();
+  });
+}
+
+function gerarPdf(d, protocolo) {
+  if (!window.jspdf?.jsPDF) throw new Error('Gerador de PDF indisponível.');
+  const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
+  const margem = 18;
+  let y = 20;
+  const novaPagina = (altura = 12) => { if (y + altura > 278) { pdf.addPage(); y = 20; } };
+  const titulo = texto => {
+    novaPagina(14); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.setTextColor(14, 44, 64);
+    pdf.text(texto.toUpperCase(), margem, y); y += 7;
+  };
+  const linha = (rotulo, valor) => {
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(43, 58, 68);
+    const linhas = pdf.splitTextToSize(`${rotulo}: ${valor || 'não informado'}`, 174);
+    novaPagina(linhas.length * 4.5 + 2); pdf.text(linhas, margem, y); y += linhas.length * 4.5 + 2;
+  };
+  pdf.setFillColor(14, 44, 64); pdf.rect(0, 0, 210, 32, 'F');
+  pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(17); pdf.text('LAVORO SEGUROS', margem, 14);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.text('Formulário de Seguro Garantia Judicial', margem, 22); y = 42;
+  linha('Protocolo', protocolo); linha('Gerado em', new Date().toLocaleString('pt-BR'));
+  titulo('Partes');
+  linha('Autor / segurado', d.autor.nome); linha(d.autor.tipo === 'Pessoa física' ? 'CPF' : 'CNPJ', d.autor.documento); linha('Endereço do autor', d.autor.endereco);
+  linha('Réu / tomador', d.reu.nome); linha('CNPJ', d.reu.documento); linha('Endereço do réu', d.reu.endereco);
+  titulo('Processo');
+  linha('Número', d.processo.numero); linha('Tribunal', d.processo.tribunal); linha('Juízo / vara', d.processo.juizo); linha('Natureza', d.naturezaRotulo);
+  linha('Processo administrativo', d.processo.numeroAdministrativo); linha('Tribunal Regional', d.processo.tribunalRegional);
+  titulo('Garantia');
+  if (d.natureza === 'recursal') { linha('Tipo de recurso', d.garantia.tipoRecurso); linha('Enquadramento', d.garantia.enquadramento); }
+  else { linha('Valor da causa', money(d.garantia.valorCausa)); linha('Auto de infração', d.garantia.autoInfracao); linha('Linha de defesa', d.garantia.linhaDefesa); linha('Histórico', d.garantia.historico); }
+  linha('Acréscimo de 30%', d.garantia.add30 ? 'sim' : 'não'); linha('Importância segurada', money(d.garantia.importanciaSegurada));
+  titulo('Condições e responsável');
+  linha('Índice', d.indice); linha('Objetivo', d.objetivo); linha('Vigência', `${d.vigencia.inicio} a ${d.vigencia.fim}`); linha('Probabilidade de êxito', d.exito);
+  linha('Advogado', d.advogado.nome); linha('OAB', `${d.advogado.oab} / ${d.advogado.uf}`);
+  titulo('Assinatura do responsável'); novaPagina(36);
+  pdf.addImage(d.assinatura, 'PNG', margem, y, 65, 25, undefined, 'FAST'); y += 29;
+  pdf.setDrawColor(130, 146, 157); pdf.line(margem, y, margem + 75, y); pdf.setFontSize(8); pdf.text('Assinatura fornecida eletronicamente', margem, y + 4);
+  pdf.save(`proposta-garantia-${(d.processo.numero || protocolo).replace(/\D/g, '')}.pdf`);
+}
 
 function ligarEventos() {
   $$('input[name="natureza"]').forEach(r => r.addEventListener('change', () => {
@@ -1212,6 +1299,14 @@ function ligarEventos() {
       return;
     }
 
+    if (!assinatura || assinatura.isEmpty()) {
+      $('#signatureField').classList.add('is-invalid');
+      $('#signatureStatus').textContent = 'Faça sua assinatura antes de revisar.';
+      $('#s7').scrollIntoView({ block: 'start' });
+      $('#signatureCanvas').focus({ preventScroll: true });
+      return;
+    }
+
     $('#modalBody').innerHTML = montarConferencia(coletar());
     $('#confirmCheck').checked = false;
     $('#btnEnviar').disabled = true;
@@ -1234,6 +1329,7 @@ function ligarEventos() {
 
     const protocolo = 'LV-' + new Date().toISOString().slice(2, 10).replace(/-/g, '') +
                       '-' + String(Math.floor(Math.random() * 9000) + 1000);
+    protocoloAtual = protocolo;
 
     $('#okProtocolo').textContent = protocolo;
     $('#okProcesso').textContent = d.processo.numero || '—';
@@ -1241,17 +1337,23 @@ function ligarEventos() {
 
     fecharModal('scrim');
     abrirModal('scrimOk');
+    try {
+      gerarPdf(d, protocolo);
+    } catch (erro) {
+      console.error(erro);
+      alert('A proposta foi revisada, mas não foi possível gerar o PDF. Use o botão de download para tentar novamente.');
+    }
   });
 
   $('#btnFechar').addEventListener('click', () => fecharModal('scrimOk'));
 
   $('#btnBaixar').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify(coletar(), null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'proposta-seguro-garantia.json';
-    a.click();
-    URL.revokeObjectURL(a.href);
+    try {
+      gerarPdf(window.__proposta || coletar(), protocoloAtual);
+    } catch (erro) {
+      console.error(erro);
+      alert('Não foi possível gerar o PDF. Recarregue a página e tente novamente.');
+    }
   });
 
   $('#btnLimpar').addEventListener('click', () => {
@@ -1260,6 +1362,10 @@ function ligarEventos() {
     $$('.input-money').forEach(el => { el.dataset.cents = '0'; });
     $$('.input').forEach(el => el.classList.remove('is-filled', 'is-invalid'));
     $$('.hint[data-status], #dataJudStatus').forEach(el => setHint(el, ''));
+    if (assinatura) assinatura.clear();
+    $('#signaturePlaceholder').hidden = false;
+    $('#signatureField').classList.remove('is-invalid');
+    $('#signatureStatus').textContent = 'A assinatura é obrigatória para enviar.';
     definirDataHoje();
     renderDecoder();
     aplicarNatureza();
@@ -1278,6 +1384,7 @@ function iniciar() {
   montarUfs();
   montarTrts();
   montarRecursos();
+  iniciarAssinatura();
   ligarMascaras();
   ligarEventos();
   ligarIndice();

@@ -43,6 +43,7 @@
         <li><a href="#s4" data-idx="s4"><span class="ix-n">04</span><span class="ix-t">Garantia</span></a></li>
         <li><a href="#s5" data-idx="s5"><span class="ix-n">05</span><span class="ix-t">Vigência e risco</span></a></li>
         <li><a href="#s6" data-idx="s6"><span class="ix-n">06</span><span class="ix-t">Advogado</span></a></li>
+        <li><a href="#s7" data-idx="s7"><span class="ix-n">07</span><span class="ix-t">Assinatura</span></a></li>
       </ol>
       <p class="index-note">Os dados de CNPJ e de processo são buscados em bases públicas. Confira sempre antes de enviar.</p>
     </nav>
@@ -464,6 +465,23 @@
       </section>
 
       <!-- ── AÇÃO ──────────────────────────────────────────────── -->
+      <section class="block" id="s7">
+        <div class="block-head">
+          <span class="eyebrow">Seção 07</span>
+          <h2>Assinatura do responsável</h2>
+          <p class="block-sub">Assine com o dedo, caneta ou mouse. A assinatura será incluída no PDF.</p>
+        </div>
+        <div class="signature-field" id="signatureField">
+          <canvas id="signatureCanvas" aria-label="Área para desenhar a assinatura" tabindex="0"></canvas>
+          <span class="signature-line" aria-hidden="true"></span>
+          <span class="signature-placeholder" id="signaturePlaceholder">Assine aqui</span>
+        </div>
+        <div class="signature-actions">
+          <p class="hint" id="signatureStatus" role="status">A assinatura é obrigatória para enviar.</p>
+          <button class="btn-quiet" type="button" id="btnLimparAssinatura">Limpar assinatura</button>
+        </div>
+      </section>
+
       <footer class="actions">
         <p class="actions-note" id="actionsNote">Preencha os campos obrigatórios para revisar.</p>
         <div class="actions-btns">
@@ -530,13 +548,15 @@
     </div>
     <footer class="modal-foot">
       <div class="modal-btns">
-        <button class="btn-quiet" type="button" id="btnBaixar">Baixar dados (JSON)</button>
+        <button class="btn-quiet" type="button" id="btnBaixar">Baixar formulário em PDF</button>
         <button class="btn" type="button" id="btnFechar">Fechar</button>
       </div>
     </footer>
   </div>
 </div>
 
+<script src="signature_pad.umd.min.js"></script>
+<script src="jspdf.umd.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

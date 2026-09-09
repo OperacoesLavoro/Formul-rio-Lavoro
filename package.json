@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "Formulário de garantia judicial com consulta DataJud em Cloudflare Workers",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "node scripts/build.mjs",
     "dev": "npm run build && wrangler dev",
@@ -11,5 +13,11 @@
     "check": "node --check js/app.js && node --test tests/*.test.mjs",
     "deploy:check": "npm run build && wrangler deploy --dry-run"
   },
-  "devDependencies": { "wrangler": "4.130.0" }
+  "devDependencies": {
+    "wrangler": "4.130.0"
+  },
+  "dependencies": {
+    "jspdf": "^4.2.1",
+    "signature_pad": "^5.1.4"
+  }
 }

@@ -15,6 +15,8 @@ const assets = [
   { from: 'html/diagnostico.html', to: 'diagnostico.html' },
   { from: 'js/app.js', to: 'app.js' },
   { from: 'js/diagnostico.js', to: 'diagnostico.js' },
+  { from: 'node_modules/signature_pad/dist/signature_pad.umd.min.js', to: 'signature_pad.umd.min.js' },
+  { from: 'node_modules/jspdf/dist/jspdf.umd.min.js', to: 'jspdf.umd.min.js' },
   { from: 'css/styles.css', to: 'styles.css' },
   { from: 'assets/Fundo 4.png', to: 'Fundo 4.png' },
   { from: 'assets/Logo_Lavoro (Branca).png', to: 'Logo_Lavoro (Branca).png' },
