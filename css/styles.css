@@ -98,7 +98,8 @@ body {
   flex-wrap: wrap;
   gap: 20px 28px;
   padding: 22px 22px;
-  background: linear-gradient(104deg, var(--ink) 0%, #28418f 55%, #3457a6 100%);
+  /* cor do cabeçalho de lavoroseguros.com.br (.header_bottom, rgba(20,64,92,1)) */
+  background: #14405c;
   border-radius: var(--r) var(--r) 0 0;
 }
 
