@@ -32,7 +32,7 @@ test('consulta fixa no CNJ, credencial apenas no servidor e resposta sem cache',
   const fetchMock = t.mock.method(globalThis, 'fetch', async (url, options) => {
     assert.equal(url, 'https://api-publica.datajud.cnj.jus.br/api_publica_tjsp/_search');
     assert.equal(options.headers.Authorization, 'APIKey test-only-placeholder');
-    assert.equal(options.redirect, 'error');
+    assert.equal(options.redirect, 'manual');
     assert.equal(JSON.parse(options.body).query.match.numeroProcesso, numero());
     assert.ok(options.signal instanceof AbortSignal);
     return Response.json({ hits: { hits: [{ _source: { grau: 'G1', orgaoJulgador: { nome: 'Vara de teste' } } }] } });
@@ -92,4 +92,35 @@ test('traduz erros e respostas inesperadas do CNJ sem repassar detalhes internos
 test('entrega assets pelo binding, preservando a página inicial', async () => {
   const response = await worker.fetch(new Request('https://formulario.example/'), env());
   assert.equal(await response.text(), 'formulario');
+});
+
+test('distingue chave malformada, falha de conexão, redirecionamento e resposta não JSON', async t => {
+  const logs = t.mock.method(console, 'warn', () => {});
+  const config = env();
+  config.DATAJUD_APIKEY = 'APIKey secret-not-for-logs';
+  const never = t.mock.method(globalThis, 'fetch', async () => { throw new Error('unexpected call'); });
+  const invalidKey = await worker.fetch(request(), config);
+  assert.equal(invalidKey.status, 503);
+  assert.match((await invalidKey.json()).erro, /CNJ_CONFIG/);
+  assert.equal(never.mock.callCount(), 0);
+  never.mock.restore();
+  const cases = [
+    [async () => { throw new TypeError('sensitive-error-details'); }, 'CNJ_CONNECTION'],
+    [async () => new Response(null, { status: 302, headers: { Location: 'https://other.example/' } }), 'CNJ_REDIRECT'],
+    [async () => new Response('<html>sensitive-error-details</html>', { headers: { 'Content-Type': 'text/html' } }), 'CNJ_FORMAT'],
+    [async () => new Response('{invalid', { headers: { 'Content-Type': 'application/json' } }), 'CNJ_RESPONSE']
+  ];
+  for (const [fetch, code] of cases) {
+    const mock = t.mock.method(globalThis, 'fetch', fetch);
+    const response = await worker.fetch(request(), env());
+    assert.equal(response.status, 502);
+    const message = (await response.json()).erro;
+    assert.ok(message.includes(code));
+    assert.ok(!message.includes('sensitive-error-details'));
+    mock.mock.restore();
+  }
+  const logged = JSON.stringify(logs.mock.calls.map(call => call.arguments));
+  for (const value of ['secret-not-for-logs', 'test-only-placeholder', 'sensitive-error-details', numero()]) {
+    assert.ok(!logged.includes(value));
+  }
 });
