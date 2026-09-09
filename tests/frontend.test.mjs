@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const source = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../js/app.js', import.meta.url), 'utf8');
 const base = '0000001' + '2025' + '8' + '26' + '0001';
 const numero = base.slice(0, 7) + String(98n - BigInt(base + '00') % 97n).padStart(2, '0') + base.slice(7);
 function setup(fetch) {

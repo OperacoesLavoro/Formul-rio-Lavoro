@@ -26,7 +26,7 @@ O time abre um link HTTPS; não precisa instalar Node nem iniciar um proxy local
 7. Compartilhe o link do formulário com o time. Alterações enviadas à branch conectada podem gerar novos deploys automáticos.
 
 O formulário abre sem a chave, mas a consulta retorna uma mensagem de configuração pendente até o Secret ser definido.
-Não é necessário editar `app.js` com a URL do Worker: a chamada usa `/api/datajud` no mesmo domínio.
+Não é necessário editar `js/app.js` com a URL do Worker: a chamada usa `/api/datajud` no mesmo domínio.
 
 ## Desenvolvimento e validação
 
@@ -50,14 +50,17 @@ Para publicação manual autenticada na sua conta: `npm run deploy`.
 
 ## Organização e fluxo
 
-- `index.html`, `app.js`, `styles.css`: formulário existente e preenchimento dos dados.
+- `html/`: `index.html` (formulário) e `diagnostico.html` (verificação de configuração).
+- `css/styles.css`: identidade visual e layout.
+- `js/`: `app.js` (preenchimento e regras do formulário) e `diagnostico.js`.
+- `assets/`: logo e imagem de fundo.
 - `src/worker.mjs`: rotas HTTP, origem, limite de chamadas e respostas de erro.
 - `src/services/datajud.mjs`: validação CNJ, seleção de tribunal e chamada à API.
 - `src/utils/http.mjs`: leitura limitada de JSON e respostas HTTP.
-- `scripts/build.mjs`: copia somente a lista explícita de assets para `dist/`.
+- `scripts/build.mjs`: copia a lista explícita de `html/`, `css/`, `js/`, `assets/` e `_headers`
+  para `dist/` no formato plano que o Worker publica — a organização por tipo é só do código-fonte.
 - `wrangler.jsonc`: Worker, assets e limite de chamadas.
 - `tests/`: verificações automatizadas sem usar processos reais nem credenciais reais.
-- `proxy/`: referências legadas; a publicação atual usa `src/worker.mjs`.
 
 `POST /api/datajud` recebe somente `{ "numeroProcesso": "20 dígitos" }`.
 O servidor valida tamanho e dígito verificador, deriva o tribunal e monta uma consulta fixa.

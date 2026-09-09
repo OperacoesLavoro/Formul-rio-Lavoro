@@ -7,8 +7,8 @@
 <meta name="description" content="Formulário de cotação de seguro garantia judicial da Lavoro Seguros.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/styles.css">
 </head>
 <body>
 
@@ -20,7 +20,7 @@
 
   <!-- ══ MASTHEAD ══════════════════════════════════════════════ -->
   <header class="masthead">
-    <img class="masthead-logo" src="Logo_Lavoro%20(Branca).png" alt="Lavoro Seguros">
+    <img class="masthead-logo" src="../assets/Logo_Lavoro%20(Branca).png" alt="Lavoro Seguros">
     <div class="masthead-title">
       <h1>Formulário Seguro Garantia</h1>
       <p>Garantia judicial e recursal &middot; proposta de cotação</p>
@@ -53,67 +53,69 @@
           <p class="block-sub">O autor é o segurado; o réu é o tomador da garantia.</p>
         </div>
 
-        <fieldset class="party">
-          <legend>Autor <em>&middot; segurado</em></legend>
+        <div class="parties">
+          <fieldset class="party">
+            <legend>Autor <em>&middot; segurado</em></legend>
 
-          <div class="row">
-            <div class="field field-auto">
-              <span class="label">Natureza</span>
-              <div class="segmented" role="radiogroup" aria-label="Natureza do autor">
-                <label><input type="radio" name="autorTipo" value="PJ" checked><span>Pessoa jurídica</span></label>
-                <label><input type="radio" name="autorTipo" value="PF"><span>Pessoa física</span></label>
+            <div class="row">
+              <div class="field field-auto">
+                <span class="label">Natureza</span>
+                <div class="segmented" role="radiogroup" aria-label="Natureza do autor">
+                  <label><input type="radio" name="autorTipo" value="PJ" checked><span>Pessoa jurídica</span></label>
+                  <label><input type="radio" name="autorTipo" value="PF"><span>Pessoa física</span></label>
+                </div>
+              </div>
+
+              <div class="field field-doc">
+                <label class="label" for="autorDoc">
+                  <span data-doclabel="autor">CNPJ</span>
+                </label>
+                <div class="lookup">
+                  <input class="input mono" id="autorDoc" name="autorDoc" inputmode="numeric"
+                         autocomplete="off" placeholder="00.000.000/0000-00" data-required>
+                  <button class="btn-lookup" type="button" id="autorBuscar" data-lookup="autor">Buscar</button>
+                </div>
+                <p class="hint" data-status="autor" role="status"></p>
               </div>
             </div>
+
+            <div class="field">
+              <label class="label" for="autorNome">Nome / Razão social</label>
+              <input class="input" id="autorNome" name="autorNome" autocomplete="off" data-required>
+            </div>
+
+            <div class="field">
+              <label class="label" for="autorEndereco">Endereço</label>
+              <input class="input" id="autorEndereco" name="autorEndereco" autocomplete="off" data-required
+                     placeholder="Logradouro, nº, complemento — bairro — município/UF — CEP">
+            </div>
+          </fieldset>
+
+          <fieldset class="party">
+            <legend>Réu <em>&middot; tomador</em></legend>
+            <p class="fieldset-note">Sempre pessoa jurídica. Basta o CNPJ — razão social e endereço vêm do cartão&nbsp;CNPJ.</p>
 
             <div class="field field-doc">
-              <label class="label" for="autorDoc">
-                <span data-doclabel="autor">CNPJ</span> <b class="req">obrigatório</b>
-              </label>
+              <label class="label" for="reuDoc">CNPJ</label>
               <div class="lookup">
-                <input class="input mono" id="autorDoc" name="autorDoc" inputmode="numeric"
+                <input class="input mono" id="reuDoc" name="reuDoc" inputmode="numeric"
                        autocomplete="off" placeholder="00.000.000/0000-00" data-required>
-                <button class="btn-lookup" type="button" id="autorBuscar" data-lookup="autor">Buscar</button>
+                <button class="btn-lookup" type="button" id="reuBuscar" data-lookup="reu">Buscar</button>
               </div>
-              <p class="hint" data-status="autor" role="status"></p>
+              <p class="hint" data-status="reu" role="status"></p>
             </div>
-          </div>
 
-          <div class="field">
-            <label class="label" for="autorNome">Nome / Razão social <b class="req">obrigatório</b></label>
-            <input class="input" id="autorNome" name="autorNome" autocomplete="off" data-required>
-          </div>
-
-          <div class="field">
-            <label class="label" for="autorEndereco">Endereço <b class="req">obrigatório</b></label>
-            <input class="input" id="autorEndereco" name="autorEndereco" autocomplete="off" data-required
-                   placeholder="Logradouro, nº, complemento — bairro — município/UF — CEP">
-          </div>
-        </fieldset>
-
-        <fieldset class="party">
-          <legend>Réu <em>&middot; tomador</em></legend>
-          <p class="fieldset-note">Sempre pessoa jurídica. Basta o CNPJ — razão social e endereço vêm do cartão&nbsp;CNPJ.</p>
-
-          <div class="field field-doc">
-            <label class="label" for="reuDoc">CNPJ <b class="req">obrigatório</b></label>
-            <div class="lookup">
-              <input class="input mono" id="reuDoc" name="reuDoc" inputmode="numeric"
-                     autocomplete="off" placeholder="00.000.000/0000-00" data-required>
-              <button class="btn-lookup" type="button" id="reuBuscar" data-lookup="reu">Buscar</button>
+            <div class="field">
+              <label class="label" for="reuNome">Razão social</label>
+              <input class="input" id="reuNome" name="reuNome" autocomplete="off" data-required>
             </div>
-            <p class="hint" data-status="reu" role="status"></p>
-          </div>
 
-          <div class="field">
-            <label class="label" for="reuNome">Razão social <b class="req">obrigatório</b></label>
-            <input class="input" id="reuNome" name="reuNome" autocomplete="off" data-required>
-          </div>
-
-          <div class="field">
-            <label class="label" for="reuEndereco">Endereço <b class="req">obrigatório</b></label>
-            <input class="input" id="reuEndereco" name="reuEndereco" autocomplete="off" data-required>
-          </div>
-        </fieldset>
+            <div class="field">
+              <label class="label" for="reuEndereco">Endereço</label>
+              <input class="input" id="reuEndereco" name="reuEndereco" autocomplete="off" data-required>
+            </div>
+          </fieldset>
+        </div>
       </section>
 
       <!-- ── 02 PROCESSO ───────────────────────────────────────── -->
@@ -124,17 +126,14 @@
           <p class="block-sub">O número já identifica o tribunal e a natureza da ação.</p>
         </div>
 
-        <div class="row row-2">
-          <div class="field">
-            <label class="label" for="processo">Número do processo <b class="req">obrigatório</b></label>
+        <div class="field">
+          <label class="label" for="processo">Número do processo</label>
+          <div class="lookup">
             <input class="input mono input-cnj" id="processo" name="processo" inputmode="numeric"
                    autocomplete="off" placeholder="0000000-00.0000.0.00.0000" data-required>
+            <button class="btn-lookup" type="button" id="btnDataJud">Buscar</button>
           </div>
-          <div class="field" data-only="tributario administrativo" hidden>
-            <label class="label" for="numAdministrativo">Número do processo administrativo <b class="req">obrigatório</b></label>
-            <input class="input mono" id="numAdministrativo" name="numAdministrativo" autocomplete="off"
-                   placeholder="ex.: 10880.720145/2025-11">
-          </div>
+          <p class="hint" id="dataJudStatus" role="status"></p>
         </div>
 
         <div class="process-context" id="decoder" role="status" aria-live="polite" hidden>
@@ -145,17 +144,17 @@
           <span class="process-validation" id="decoderPill"></span>
         </div>
 
-        <div class="process-court">
+        <div class="row row-2">
           <div class="field">
-            <label class="label" for="juizoNome">Juízo / vara <b class="req">obrigatório</b></label>
+            <label class="label" for="juizoNome">Juízo / vara</label>
             <input class="input" id="juizoNome" name="juizoNome" autocomplete="off" data-required
                    placeholder="ex.: 4ª Vara do Trabalho de São Paulo">
           </div>
-          <button class="btn-ghost" type="button" id="btnDataJud">Buscar dados do processo</button>
-        </div>
-
-        <div class="datajud">
-          <p class="hint" id="dataJudStatus" role="status"></p>
+          <div class="field" data-only="tributario administrativo" hidden>
+            <label class="label" for="numAdministrativo">Número do processo administrativo</label>
+            <input class="input mono" id="numAdministrativo" name="numAdministrativo" autocomplete="off"
+                   placeholder="ex.: 10880.720145/2025-11">
+          </div>
         </div>
       </section>
 
@@ -220,7 +219,7 @@
         <!-- ...... 04-A · via padrão ...... -->
         <div class="branch" id="blocoPadrao" hidden>
           <div class="field field-money">
-            <label class="label" for="valorCausa">Valor da causa <b class="req">obrigatório</b></label>
+            <label class="label" for="valorCausa">Valor da causa</label>
             <input class="input mono input-money" id="valorCausa" name="valorCausa"
                    inputmode="decimal" autocomplete="off" placeholder="R$ 0,00" data-required>
           </div>
@@ -258,7 +257,7 @@
 
           <div class="field" data-only="tributario" hidden>
             <label class="label" for="linhaDefesa">
-              Linha de defesa a ser sustentada <b class="req">obrigatório</b>
+              Linha de defesa a ser sustentada
             </label>
             <textarea class="input textarea" id="linhaDefesa" name="linhaDefesa" rows="4"
                       placeholder="Tese central da defesa na esfera fiscal."></textarea>
@@ -277,7 +276,7 @@
           <p class="branch-note" id="recursalFonte">Tabela de depósito recursal em carregamento.</p>
 
           <div class="field">
-            <span class="label">Tipo de recurso <b class="req">obrigatório</b></span>
+            <span class="label">Tipo de recurso</span>
             <div class="choices choices-tight" role="radiogroup" aria-label="Tipo de recurso" id="recursoGroup">
               <!-- preenchido por app.js a partir da tabela do TST -->
             </div>
@@ -287,7 +286,7 @@
           <div class="subform" id="aiSub" hidden>
             <p class="subform-head">Agravo de instrumento &middot; CLT, art. 899, §§ 7º e 8º</p>
             <div class="field">
-              <label class="label" for="aiDestranca">Recurso que se pretende destrancar <b class="req">obrigatório</b></label>
+              <label class="label" for="aiDestranca">Recurso que se pretende destrancar</label>
               <select class="input select" id="aiDestranca" name="aiDestranca">
                 <option value="">Selecione</option>
                 <option value="ro">Recurso Ordinário</option>
@@ -309,7 +308,7 @@
 
           <div class="row row-2">
             <div class="field">
-              <label class="label" for="enquadramento">Enquadramento do recorrente <b class="req">obrigatório</b></label>
+              <label class="label" for="enquadramento">Enquadramento do recorrente</label>
               <select class="input select" id="enquadramento" name="enquadramento">
                 <option value="integral">Integral — 100% do depósito</option>
                 <option value="meio">Metade — entidade sem fins lucrativos, empregador doméstico, MEI, ME ou EPP</option>
@@ -319,7 +318,7 @@
               <p class="hint">Metade pelo § 9º; isenção pelo § 10 da CLT ou pela Súmula 86 do TST.</p>
             </div>
             <div class="field">
-              <label class="label" for="trt">Tribunal Regional do Trabalho <b class="req">obrigatório</b></label>
+              <label class="label" for="trt">Tribunal Regional do Trabalho</label>
               <select class="input select" id="trt" name="trt">
                 <option value="">Selecione</option>
               </select>
@@ -368,7 +367,7 @@
         <!-- ...... comuns às duas vias ...... -->
         <div class="branch" id="blocoComum" hidden>
           <div class="field">
-            <label class="label" for="indice">Índice de reajuste <b class="req">obrigatório</b></label>
+            <label class="label" for="indice">Índice de reajuste</label>
             <select class="input select" id="indice" name="indice">
               <option value="">Selecione o índice</option>
               <option value="IPCA">IPCA — Índice Nacional de Preços ao Consumidor Amplo</option>
@@ -381,7 +380,7 @@
           </div>
 
           <div class="field">
-            <label class="label" for="objetivo">Objetivo da garantia <b class="req">obrigatório</b></label>
+            <label class="label" for="objetivo">Objetivo da garantia</label>
             <textarea class="input textarea" id="objetivo" name="objetivo" rows="3"
                       placeholder="O que a apólice precisa garantir e perante qual juízo."></textarea>
           </div>
@@ -398,11 +397,11 @@
 
         <div class="row row-3">
           <div class="field">
-            <label class="label" for="vigInicio">Início de vigência <b class="req">obrigatório</b></label>
+            <label class="label" for="vigInicio">Início de vigência</label>
             <input class="input" type="date" id="vigInicio" name="vigInicio" data-required>
           </div>
           <div class="field">
-            <label class="label" for="vigAnos">Prazo <b class="req">obrigatório</b></label>
+            <label class="label" for="vigAnos">Prazo</label>
             <select class="input select" id="vigAnos" name="vigAnos" data-required>
               <option value="">Selecione</option>
               <option value="3">3 anos</option>
@@ -420,7 +419,7 @@
         </div>
 
         <div class="field">
-          <span class="label">Probabilidade de êxito <b class="req">obrigatório</b></span>
+          <span class="label">Probabilidade de êxito</span>
           <div class="choices choices-tight choices-3" role="radiogroup" aria-label="Probabilidade de êxito">
             <label class="choice">
               <input type="radio" name="exito" value="Provável" data-required>
@@ -447,15 +446,15 @@
 
         <div class="row row-3">
           <div class="field field-grow">
-            <label class="label" for="advNome">Nome <b class="req">obrigatório</b></label>
+            <label class="label" for="advNome">Nome</label>
             <input class="input" id="advNome" name="advNome" autocomplete="off" data-required>
           </div>
           <div class="field">
-            <label class="label" for="advOab">Inscrição na OAB <b class="req">obrigatório</b></label>
+            <label class="label" for="advOab">Inscrição na OAB</label>
             <input class="input mono" id="advOab" name="advOab" autocomplete="off" placeholder="000.000" data-required>
           </div>
           <div class="field">
-            <label class="label" for="advUf">Estado <b class="req">obrigatório</b></label>
+            <label class="label" for="advUf">Estado</label>
             <select class="input select" id="advUf" name="advUf" data-required>
               <option value="">UF</option>
             </select>
@@ -537,6 +536,6 @@
   </div>
 </div>
 
-<script src="app.js"></script>
+<script src="../js/app.js"></script>
 </body>
 </html>
