@@ -6,8 +6,8 @@
 :root {
   /* cor — paleta corporativo clássico: azul-escuro, grafite, gelo.
      o ciano do logo permanece só nos afetos interativos (foco, seleção). */
-  --ink:        #1e3a8a;  /* azul-escuro — títulos, botão primário, ênfase */
-  --ink-hover:  #16295e;  /* azul-escuro mais fundo, só para :hover */
+  --ink:        #14405c;  /* cor de lavoroseguros.com.br — títulos, botão primário, ênfase */
+  --ink-hover:  #0e2e42;  /* a mesma cor, mais fundo, só para :hover */
   --ink-2:      #1e293b;  /* grafite — texto do corpo */
   --ink-soft:   #334155;  /* grafite mais claro — rótulos e notas */
   --brand:      #00b7f0;
