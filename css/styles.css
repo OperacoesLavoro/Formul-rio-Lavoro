@@ -62,9 +62,11 @@ body {
   position: fixed;
   inset: 0;
   z-index: 0;
+  /* sem prefixo de pasta: no build, dist/ tem styles.css e a imagem
+     lado a lado (scripts/build.mjs achata html/, css/, js/, assets/) */
   background:
     linear-gradient(180deg, rgba(223,232,238,0) 55%, rgba(223,232,238,.9) 100%),
-    url('../assets/Fundo%204.png') center / cover no-repeat;
+    url('Fundo%204.png') center / cover no-repeat;
 }
 
 .skip {

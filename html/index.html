@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<!-- scripts/build.mjs copia este arquivo para dist/index.html e achata
+     css/, js/ e assets/ para o mesmo nível — por isso os links abaixo
+     não levam prefixo de pasta. Para testar com os caminhos reais,
+     rode `npm run dev` (ou sirva dist/ depois de `npm run build`);
+     abrir este arquivo direto quebra o CSS/JS/imagens. -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Formulário Seguro Garantia Judicial — Lavoro Seguros</title>
@@ -8,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -20,7 +25,7 @@
 
   <!-- ══ MASTHEAD ══════════════════════════════════════════════ -->
   <header class="masthead">
-    <img class="masthead-logo" src="../assets/Logo_Lavoro%20(Branca).png" alt="Lavoro Seguros">
+    <img class="masthead-logo" src="Logo_Lavoro%20(Branca).png" alt="Lavoro Seguros">
     <div class="masthead-title">
       <h1>Formulário Seguro Garantia</h1>
       <p>Garantia judicial e recursal &middot; proposta de cotação</p>
@@ -536,6 +541,6 @@
   </div>
 </div>
 
-<script src="../js/app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
