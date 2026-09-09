@@ -152,7 +152,10 @@ body {
   background: var(--paper);
   border-radius: 0 0 var(--r) var(--r);
   box-shadow: var(--shadow);
-  overflow: hidden;
+  /* "hidden" cria um contexto de rolagem que quebra o position:sticky do
+     índice lateral (bug conhecido de Grid + overflow no Chromium); "clip"
+     recorta os cantos do mesmo jeito, sem esse efeito colateral */
+  overflow: clip;
 }
 
 @media (min-width: 1000px) {
