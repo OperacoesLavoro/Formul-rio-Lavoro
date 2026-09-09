@@ -287,8 +287,9 @@ function montarEndereco(o) {
   ].filter(Boolean).join(' — ');
 }
 
-/* BrasilAPI e minhareceita.org devolvem o mesmo esquema: um parser serve às duas. */
-function lerEsquemaPlano(d, fonte) {
+/* BrasilAPI e minhareceita.org devolvem o mesmo esquema: um parser serve às duas.
+   A pessoa que preenche o formulário não precisa saber qual delas respondeu. */
+function lerEsquemaPlano(d) {
   return {
     razao: limpar(d.razao_social) || limpar(d.nome_fantasia),
     fantasia: limpar(d.nome_fantasia),
@@ -297,32 +298,29 @@ function lerEsquemaPlano(d, fonte) {
       tipo: d.descricao_tipo_de_logradouro, logradouro: d.logradouro, numero: d.numero,
       complemento: d.complemento, bairro: d.bairro,
       municipio: d.municipio, uf: d.uf, cep: d.cep
-    }),
-    fonte
+    })
   };
 }
 
-async function pedir(url, fonte) {
+async function pedir(url) {
   const r = await fetch(url, { headers: { Accept: 'application/json' } });
   if (r.status === 404) throw new Error('CNPJ não encontrado na Receita.');
-  if (r.status === 429) throw new Error(fonte + ' recusou por excesso de consultas.');
-  if (!r.ok) throw new Error(fonte + ' respondeu ' + r.status + '.');
+  if (r.status === 429) throw new Error('Muitas consultas em pouco tempo. Tente novamente em instantes.');
+  if (!r.ok) throw new Error('Não foi possível consultar agora.');
   return r.json();
 }
 
 async function viaBrasilApi(cnpj) {
-  return lerEsquemaPlano(
-    await pedir(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, 'BrasilAPI'), 'BrasilAPI');
+  return lerEsquemaPlano(await pedir(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`));
 }
 
 async function viaMinhaReceita(cnpj) {
-  return lerEsquemaPlano(
-    await pedir(`https://minhareceita.org/${cnpj}`, 'Minha Receita'), 'Minha Receita');
+  return lerEsquemaPlano(await pedir(`https://minhareceita.org/${cnpj}`));
 }
 
 /* Reserva de último recurso: 3 consultas por minuto por IP. */
 async function viaCnpjWs(cnpj) {
-  const d = await pedir(`https://publica.cnpj.ws/cnpj/${cnpj}`, 'CNPJ.ws');
+  const d = await pedir(`https://publica.cnpj.ws/cnpj/${cnpj}`);
   const e = d.estabelecimento || {};
   return {
     razao: limpar(d.razao_social),
@@ -333,8 +331,7 @@ async function viaCnpjWs(cnpj) {
       complemento: e.complemento, bairro: e.bairro,
       municipio: e.cidade && e.cidade.nome,
       uf: e.estado && e.estado.sigla, cep: e.cep
-    }),
-    fonte: 'CNPJ.ws'
+    })
   };
 }
 
@@ -373,7 +370,7 @@ async function buscarCnpj(parte) {
 
   const inativa = /baixada|inapta|suspensa|nula/i.test(dados.situacao || '');
   setHint(status,
-    `${dados.fonte}: ${dados.razao}` +
+    dados.razao +
     (dados.situacao ? ` — situação cadastral ${dados.situacao.toLowerCase()}.` : '.') +
     (inativa ? ' Atenção: cadastro não ativo.' : ''),
     inativa ? 'warn' : 'ok');
@@ -405,12 +402,12 @@ async function consultarDataJud() {
     return;
   }
   if (location.protocol === 'file:') {
-    setHint(status, 'Abra o formulário pelo link publicado para consultar o CNJ.', 'warn');
+    setHint(status, 'Abra o formulário pelo link publicado para buscar os dados.', 'warn');
     return;
   }
 
   botao.disabled = true;
-  setHint(status, 'Consultando ' + alias.toUpperCase() + ' na base do CNJ…', 'load');
+  setHint(status, 'Buscando dados do processo…', 'load');
   try {
     const response = await fetch('/api/datajud', {
       method: 'POST',
@@ -431,7 +428,7 @@ async function consultarDataJud() {
       return;
     }
     if (!data.hits.hits.length) {
-      setHint(status, 'Processo não encontrado na base do CNJ. Confira o número ou preencha os campos manualmente.', 'warn');
+      setHint(status, 'Processo não encontrado. Confira o número ou preencha os campos manualmente.', 'warn');
       return;
     }
     preencherComDataJud(data.hits.hits.map(hit => hit._source));
@@ -447,7 +444,7 @@ async function consultarDataJud() {
   }
 }
 
-function preencherComDataJud(fontes, via) {
+function preencherComDataJud(fontes) {
   const status = $('#dataJudStatus');
   const trazidos = [];
 
@@ -491,7 +488,7 @@ function preencherComDataJud(fontes, via) {
             /^(\d{4})(\d{2})(\d{2}).*/, '$3/$2/$1')
         : '',
       fontes.length > 1
-        ? 'Graus na base do CNJ: ' + porGrau.map(s => s.grau).filter(Boolean).join(', ')
+        ? 'Graus consultados: ' + porGrau.map(s => s.grau).filter(Boolean).join(', ')
         : ''
     ].filter(Boolean);
 
@@ -500,12 +497,11 @@ function preencherComDataJud(fontes, via) {
     trazidos.push(`${linhas.length} movimentações`);
   }
 
-  const rota = via && via.rotulo ? ' (via ' + via.rotulo + ')' : '';
   setHint(status,
     trazidos.length
-      ? 'Trazido do CNJ' + rota + ': ' + trazidos.join(' e ') +
-        '. Confira antes de enviar — a base não traz partes nem valor da causa.'
-      : 'O CNJ respondeu' + rota + ', mas os campos já estavam preenchidos. Nada foi sobrescrito.',
+      ? 'Encontramos ' + trazidos.join(' e ') +
+        '. Confira antes de enviar — faltam partes e valor da causa, preenchidos à mão.'
+      : 'Os campos já estavam preenchidos. Nada foi sobrescrito.',
     'ok');
 
   atualizarMedidor();
@@ -732,11 +728,6 @@ function campoValido(el) {
     return $$(`input[name="${el.name}"]`).some(r => r.checked);
   }
   if (el.classList.contains('input-money')) return centavosDe(el) > 0;
-  /* a confirmação só vale quando repete o número; digitado errado, barra o envio */
-  if (el.id === 'processoConf') {
-    const b = digits(el.value);
-    return b !== '' && b === digits($('#processo').value);
-  }
   return el.value.trim() !== '';
 }
 
@@ -858,12 +849,12 @@ function coletar() {
     },
     processo: {
       numero: $('#processo').value,
-      confirmacao: $('#processoConf').value,
       digitoConfere: p.completo ? digitoCnj(p) === p.digito : null,
       ramo: SEGMENTOS[p.segmento] || '',
       tribunal: nomeTribunal(p) || '',
       ano: p.ano,
-      juizo: $('#juizoNome').value.trim()
+      juizo: $('#juizoNome').value.trim(),
+      numeroAdministrativo: $('#numAdministrativo').value.trim()
     },
     garantia: recursal ? {
       tipoRecurso: recursal ? depositoDeTabela().rotulo : '',
@@ -880,7 +871,6 @@ function coletar() {
       valorCausa: centavosDe($('#valorCausa')),
       add30: $('#add30Padrao').checked,
       importanciaSegurada: total,
-      procedimentoAdministrativo: $('#numAdministrativo').value.trim(),
       autoInfracao: $('#numAutoInfracao').value.trim(),
       linhaDefesa: $('#linhaDefesa').value.trim(),
       historico: $('#historico').value.trim()
@@ -929,7 +919,8 @@ function montarConferencia(d) {
     linhaRevisao('Ramo da Justiça', d.processo.ramo),
     linhaRevisao('Tribunal', d.processo.tribunal),
     linhaRevisao('Juízo / vara', d.processo.juizo),
-    linhaRevisao('Natureza', d.naturezaRotulo)
+    linhaRevisao('Natureza', d.naturezaRotulo),
+    linhaRevisao('Número do processo administrativo', d.processo.numeroAdministrativo, 'mono')
   ]));
 
   if (d.natureza === 'recursal') {
@@ -947,7 +938,6 @@ function montarConferencia(d) {
       linhaRevisao('Valor da causa', money(d.garantia.valorCausa), 'is-money'),
       linhaRevisao('Acréscimo de 30%', d.garantia.add30 ? 'sim' : 'não'),
       linhaRevisao('Importância segurada', money(d.garantia.importanciaSegurada), 'is-money'),
-      linhaRevisao('Procedimento administrativo', d.garantia.procedimentoAdministrativo, 'mono'),
       linhaRevisao('Auto de infração', d.garantia.autoInfracao, 'mono'),
       linhaRevisao('Linha de defesa', d.garantia.linhaDefesa),
       linhaRevisao('Histórico', d.garantia.historico
@@ -973,8 +963,6 @@ function montarConferencia(d) {
   const avisos = [];
   if (d.processo.digitoConfere === false)
     avisos.push('O dígito verificador do número do processo não confere.');
-  if (digits(d.processo.numero) !== digits(d.processo.confirmacao))
-    avisos.push('Número do processo e confirmação estão diferentes.');
   if (d.autor.nome && d.reu.nome && d.autor.nome === d.reu.nome)
     avisos.push('Autor e réu estão com o mesmo nome.');
   if (d.garantia.importanciaSegurada === 0)
@@ -1122,14 +1110,9 @@ function ligarMascaras() {
   });
 
   /* número do processo */
-  $$('.input-cnj').forEach(el => {
-    el.addEventListener('input', (e) => {
-      e.target.value = maskCnj(e.target.value);
-      if (e.target.id === 'processo') {
-        sugerirNatureza(renderDecoder());
-      }
-      conferirNumero();
-    });
+  $('#processo').addEventListener('input', (e) => {
+    e.target.value = maskCnj(e.target.value);
+    sugerirNatureza(renderDecoder());
   });
 
   /* valores em reais */
@@ -1147,20 +1130,6 @@ function ligarMascaras() {
   $('#advOab').addEventListener('input', (e) => {
     e.target.value = digits(e.target.value).slice(0, 8);
   });
-}
-
-function conferirNumero() {
-  const a = digits($('#processo').value);
-  const b = digits($('#processoConf').value);
-  const st = $('#confStatus');
-
-  if (!b) { setHint(st, ''); }
-  else if (a === b) { setHint(st, 'Os números coincidem.', 'ok'); }
-  else if (a.startsWith(b)) { setHint(st, 'Continue digitando.', 'load'); }
-  else { setHint(st, 'Diferente do número informado acima.', 'error'); }
-
-  $('#processoConf').classList.toggle('is-invalid', !!b && !a.startsWith(b));
-  atualizarMedidor();
 }
 
 /* ── índice acompanha a rolagem ──────────────────────────────── */
@@ -1202,11 +1171,7 @@ function ligarEventos() {
   $('#form').addEventListener('input', (e) => {
     if (e.target.classList.contains('input')) {
       marcarPreenchido(e.target);
-      /* campos com validação própria (a confirmação do número) cuidam do
-         próprio alerta; estar preenchido não basta para limpá-lo */
-      if (campoValido(e.target) && !e.target.hasAttribute('data-selfcheck')) {
-        e.target.classList.remove('is-invalid');
-      }
+      if (campoValido(e.target)) e.target.classList.remove('is-invalid');
     }
     atualizarMedidor();
   });
@@ -1276,7 +1241,7 @@ function ligarEventos() {
     $('#form').reset();
     $$('.input-money').forEach(el => { el.dataset.cents = '0'; });
     $$('.input').forEach(el => el.classList.remove('is-filled', 'is-invalid'));
-    $$('.hint[data-status], #confStatus').forEach(el => setHint(el, ''));
+    $$('.hint[data-status], #dataJudStatus').forEach(el => setHint(el, ''));
     definirDataHoje();
     renderDecoder();
     aplicarNatureza();

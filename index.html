@@ -121,7 +121,7 @@
         <div class="block-head">
           <span class="eyebrow">Seção 02</span>
           <h2>Processo</h2>
-          <p class="block-sub">Informe e confirme o número do processo. Consulte o CNJ para preencher o juízo e o histórico de movimentações.</p>
+          <p class="block-sub">O número já identifica o tribunal e a natureza da ação.</p>
         </div>
 
         <div class="row row-2">
@@ -130,11 +130,10 @@
             <input class="input mono input-cnj" id="processo" name="processo" inputmode="numeric"
                    autocomplete="off" placeholder="0000000-00.0000.0.00.0000" data-required>
           </div>
-          <div class="field">
-            <label class="label" for="processoConf">Confirmação do número <b class="req">obrigatório</b></label>
-            <input class="input mono input-cnj" id="processoConf" name="processoConf" inputmode="numeric"
-                   autocomplete="off" placeholder="repita o número" data-required data-selfcheck>
-            <p class="hint" id="confStatus" role="status"></p>
+          <div class="field" data-only="tributario administrativo" hidden>
+            <label class="label" for="numAdministrativo">Número do processo administrativo <b class="req">obrigatório</b></label>
+            <input class="input mono" id="numAdministrativo" name="numAdministrativo" autocomplete="off"
+                   placeholder="ex.: 10880.720145/2025-11">
           </div>
         </div>
 
@@ -152,11 +151,11 @@
             <input class="input" id="juizoNome" name="juizoNome" autocomplete="off" data-required
                    placeholder="ex.: 4ª Vara do Trabalho de São Paulo">
           </div>
-          <button class="btn-ghost" type="button" id="btnDataJud">Consultar no CNJ</button>
+          <button class="btn-ghost" type="button" id="btnDataJud">Buscar dados do processo</button>
         </div>
 
         <div class="datajud">
-          <p class="hint" id="dataJudStatus" role="status">O juízo pode ser preenchido pela consulta ou informado manualmente.</p>
+          <p class="hint" id="dataJudStatus" role="status"></p>
         </div>
       </section>
 
@@ -252,17 +251,9 @@
             <p class="ledger-foot" data-ledger="foot">Sem acréscimo. A importância segurada é igual ao valor da causa.</p>
           </div>
 
-          <div class="row row-2">
-            <div class="field" data-only="tributario administrativo" hidden>
-              <label class="label" for="numAdministrativo">
-                Procedimento administrativo nº <b class="req">obrigatório</b>
-              </label>
-              <input class="input mono" id="numAdministrativo" name="numAdministrativo" autocomplete="off">
-            </div>
-            <div class="field">
-              <label class="label" for="numAutoInfracao">Auto de infração nº <span class="opt">opcional</span></label>
-              <input class="input mono" id="numAutoInfracao" name="numAutoInfracao" autocomplete="off">
-            </div>
+          <div class="field">
+            <label class="label" for="numAutoInfracao">Auto de infração nº <span class="opt">opcional</span></label>
+            <input class="input mono" id="numAutoInfracao" name="numAutoInfracao" autocomplete="off">
           </div>
 
           <div class="field" data-only="tributario" hidden>
@@ -277,7 +268,7 @@
           <div class="field">
             <label class="label" for="historico">Histórico do processo <span class="opt">opcional</span></label>
             <textarea class="input textarea" id="historico" name="historico" rows="5"
-                      placeholder="Andamento relevante até aqui. A consulta ao CNJ na seção 02 preenche este campo."></textarea>
+                      placeholder="Andamento relevante até aqui. A busca da seção 02 pode preencher este campo."></textarea>
           </div>
         </div>
 
