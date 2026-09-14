@@ -56,12 +56,77 @@
         <div class="block-head">
           <span class="eyebrow">Seção 01</span>
           <h2>Partes</h2>
-          <p class="block-sub">O autor é o segurado; o réu é o tomador da garantia.</p>
+          <p class="block-sub">Tomador, segurado e autor são partes distintas do seguro garantia — cada uma com seu próprio cadastro.</p>
         </div>
 
         <div class="parties">
           <fieldset class="party">
-            <legend>Autor <em>&middot; segurado</em></legend>
+            <legend>Tomador <em>&middot; réu</em></legend>
+            <p class="fieldset-note">Sempre pessoa jurídica. Basta o CNPJ — razão social e endereço vêm do cartão&nbsp;CNPJ.</p>
+
+            <div class="field field-doc">
+              <label class="label" for="reuDoc">CNPJ</label>
+              <div class="lookup">
+                <input class="input mono" id="reuDoc" name="reuDoc" inputmode="numeric"
+                       autocomplete="off" placeholder="00.000.000/0000-00" data-required>
+                <button class="btn-lookup" type="button" id="reuBuscar" data-lookup="reu">Buscar</button>
+              </div>
+              <p class="hint" data-status="reu" role="status"></p>
+            </div>
+
+            <div class="field">
+              <label class="label" for="reuNome">Razão social</label>
+              <input class="input" id="reuNome" name="reuNome" autocomplete="off" data-required>
+            </div>
+
+            <div class="field">
+              <label class="label" for="reuEndereco">Endereço</label>
+              <input class="input" id="reuEndereco" name="reuEndereco" autocomplete="off" data-required>
+            </div>
+          </fieldset>
+
+          <fieldset class="party">
+            <legend>Segurado</legend>
+            <p class="fieldset-note">Beneficiário da garantia — normalmente o tribunal ou juízo do processo, não o autor da ação.</p>
+
+            <div class="row">
+              <div class="field field-auto">
+                <span class="label">Natureza</span>
+                <div class="segmented" role="radiogroup" aria-label="Natureza do segurado">
+                  <label><input type="radio" name="seguradoTipo" value="PJ" checked><span>Pessoa jurídica</span></label>
+                  <label><input type="radio" name="seguradoTipo" value="PF"><span>Pessoa física</span></label>
+                </div>
+              </div>
+
+              <div class="field field-doc">
+                <label class="label" for="seguradoDoc">
+                  <span data-doclabel="segurado">CNPJ</span>
+                </label>
+                <div class="lookup">
+                  <input class="input mono" id="seguradoDoc" name="seguradoDoc" inputmode="numeric"
+                         autocomplete="off" placeholder="00.000.000/0000-00" data-required>
+                  <button class="btn-lookup" type="button" id="seguradoBuscar" data-lookup="segurado">Buscar</button>
+                </div>
+                <p class="hint" data-status="segurado" role="status"></p>
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label" for="seguradoNome">Nome / Razão social</label>
+              <input class="input" id="seguradoNome" name="seguradoNome" autocomplete="off" data-required
+                     placeholder="ex.: Tribunal de Justiça de São Paulo">
+            </div>
+
+            <div class="field">
+              <label class="label" for="seguradoEndereco">Endereço</label>
+              <input class="input" id="seguradoEndereco" name="seguradoEndereco" autocomplete="off" data-required
+                     placeholder="Logradouro, nº, complemento — bairro — município/UF — CEP">
+            </div>
+          </fieldset>
+
+          <fieldset class="party">
+            <legend>Autor</legend>
+            <p class="fieldset-note">Parte autora do processo — cadastro informativo, separado do segurado.</p>
 
             <div class="row">
               <div class="field field-auto">
@@ -94,31 +159,6 @@
               <label class="label" for="autorEndereco">Endereço</label>
               <input class="input" id="autorEndereco" name="autorEndereco" autocomplete="off" data-required
                      placeholder="Logradouro, nº, complemento — bairro — município/UF — CEP">
-            </div>
-          </fieldset>
-
-          <fieldset class="party">
-            <legend>Réu <em>&middot; tomador</em></legend>
-            <p class="fieldset-note">Sempre pessoa jurídica. Basta o CNPJ — razão social e endereço vêm do cartão&nbsp;CNPJ.</p>
-
-            <div class="field field-doc">
-              <label class="label" for="reuDoc">CNPJ</label>
-              <div class="lookup">
-                <input class="input mono" id="reuDoc" name="reuDoc" inputmode="numeric"
-                       autocomplete="off" placeholder="00.000.000/0000-00" data-required>
-                <button class="btn-lookup" type="button" id="reuBuscar" data-lookup="reu">Buscar</button>
-              </div>
-              <p class="hint" data-status="reu" role="status"></p>
-            </div>
-
-            <div class="field">
-              <label class="label" for="reuNome">Razão social</label>
-              <input class="input" id="reuNome" name="reuNome" autocomplete="off" data-required>
-            </div>
-
-            <div class="field">
-              <label class="label" for="reuEndereco">Endereço</label>
-              <input class="input" id="reuEndereco" name="reuEndereco" autocomplete="off" data-required>
             </div>
           </fieldset>
         </div>

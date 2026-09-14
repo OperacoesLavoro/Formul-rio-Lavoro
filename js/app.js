@@ -257,8 +257,9 @@ function sugerirTrt(p) {
    ─────────────────────────────────────────────────────────────── */
 
 const CAMPOS_PARTE = {
-  autor: { doc: '#autorDoc', nome: '#autorNome', end: '#autorEndereco' },
-  reu:   { doc: '#reuDoc',   nome: '#reuNome',   end: '#reuEndereco'   }
+  autor:    { doc: '#autorDoc',    nome: '#autorNome',    end: '#autorEndereco'    },
+  segurado: { doc: '#seguradoDoc', nome: '#seguradoNome', end: '#seguradoEndereco' },
+  reu:      { doc: '#reuDoc',      nome: '#reuNome',      end: '#reuEndereco'      }
 };
 
 const limpar = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
@@ -911,6 +912,18 @@ function coletar() {
   return {
     natureza: nat,
     naturezaRotulo: rotuloNat,
+    reu: {
+      documento: $('#reuDoc').value,
+      nome: $('#reuNome').value.trim(),
+      endereco: $('#reuEndereco').value.trim()
+    },
+    segurado: {
+      tipo: ($$('input[name="seguradoTipo"]').find(r => r.checked) || {}).value === 'PF'
+        ? 'Pessoa física' : 'Pessoa jurídica',
+      documento: $('#seguradoDoc').value,
+      nome: $('#seguradoNome').value.trim(),
+      endereco: $('#seguradoEndereco').value.trim()
+    },
     autor: {
       tipo: ($$('input[name="autorTipo"]').find(r => r.checked) || {}).value === 'PF'
         ? 'Pessoa física' : 'Pessoa jurídica',
@@ -922,11 +935,6 @@ function coletar() {
     representante: menor === 'sim'
       ? { nome: $('#repNome').value.trim(), cpf: $('#repCpf').value.trim() }
       : null,
-    reu: {
-      documento: $('#reuDoc').value,
-      nome: $('#reuNome').value.trim(),
-      endereco: $('#reuEndereco').value.trim()
-    },
     processo: {
       numero: $('#processo').value,
       digitoConfere: p.completo ? digitoCnj(p) === p.digito : null,
@@ -999,17 +1007,20 @@ function montarConferencia(d) {
   /* menorIdade nulo = a natureza escolhida nem faz a pergunta; nesse caso a
      linha não aparece, em vez de aparecer como “não informado” */
   blocos.push(g('Partes', [
-    linhaRevisao('Autor / segurado', d.autor.nome),
+    linhaRevisao('Tomador (réu)', d.reu.nome),
+    linhaRevisao('CNPJ', d.reu.documento, 'mono'),
+    linhaRevisao('Endereço', d.reu.endereco),
+    linhaRevisao('Segurado', d.segurado.nome),
+    linhaRevisao(d.segurado.tipo === 'Pessoa física' ? 'CPF' : 'CNPJ', d.segurado.documento, 'mono'),
+    linhaRevisao('Endereço', d.segurado.endereco),
+    linhaRevisao('Autor', d.autor.nome),
     linhaRevisao(d.autor.tipo === 'Pessoa física' ? 'CPF' : 'CNPJ', d.autor.documento, 'mono'),
     linhaRevisao('Endereço', d.autor.endereco),
     ...(d.menorIdade === null ? [] : [linhaRevisao('Envolve menor de idade', d.menorIdade)]),
     ...(d.representante ? [
       linhaRevisao('Representante legal', d.representante.nome),
       linhaRevisao('CPF do representante', d.representante.cpf, 'mono')
-    ] : []),
-    linhaRevisao('Réu / tomador', d.reu.nome),
-    linhaRevisao('CNPJ', d.reu.documento, 'mono'),
-    linhaRevisao('Endereço', d.reu.endereco)
+    ] : [])
   ]));
 
   blocos.push(g('Processo', [
@@ -1069,6 +1080,8 @@ function montarConferencia(d) {
     avisos.push('O dígito verificador do número do processo não confere.');
   if (d.autor.nome && d.reu.nome && d.autor.nome === d.reu.nome)
     avisos.push('Autor e réu estão com o mesmo nome.');
+  if (d.autor.nome && d.segurado.nome && d.autor.nome === d.segurado.nome)
+    avisos.push('Autor e segurado estão com o mesmo nome — confirme, já que normalmente são partes diferentes.');
   if (d.garantia.importanciaSegurada === 0)
     avisos.push('A importância segurada está em R$ 0,00.');
   if (d.natureza === 'recursal' && d.garantia.ajusteManual)
@@ -1185,28 +1198,33 @@ function aplicarTipoRecurso() {
 /* ── máscaras nos campos ─────────────────────────────────────── */
 
 function ligarMascaras() {
-  /* documento do autor troca de máscara com a natureza */
-  const aplicarMascaraAutor = () => {
-    const pf = ($$('input[name="autorTipo"]').find(r => r.checked) || {}).value === 'PF';
-    const campo = $('#autorDoc');
-    const botao = $('#autorBuscar');
+  /* documento troca de máscara com a natureza da parte — vale para autor e
+     segurado, as duas partes que podem ser PF ou PJ */
+  const ligarTipoDocumento = (parte) => {
+    const aplicarMascara = () => {
+      const pf = ($$(`input[name="${parte}Tipo"]`).find(r => r.checked) || {}).value === 'PF';
+      const campo = $(`#${parte}Doc`);
+      const botao = $(`#${parte}Buscar`);
 
-    $$('[data-doclabel="autor"]').forEach(el => { el.textContent = pf ? 'CPF' : 'CNPJ'; });
-    campo.placeholder = pf ? '000.000.000-00' : '00.000.000/0000-00';
-    campo.value = pf ? maskCpf(campo.value) : maskCnpj(campo.value);
-    botao.hidden = pf;
-    setHint($('[data-status="autor"]'),
-      pf ? 'Pessoa física: preencha nome e endereço à mão.' : '', pf ? null : null);
+      $$(`[data-doclabel="${parte}"]`).forEach(el => { el.textContent = pf ? 'CPF' : 'CNPJ'; });
+      campo.placeholder = pf ? '000.000.000-00' : '00.000.000/0000-00';
+      campo.value = pf ? maskCpf(campo.value) : maskCnpj(campo.value);
+      botao.hidden = pf;
+      setHint($(`[data-status="${parte}"]`),
+        pf ? 'Pessoa física: preencha nome e endereço à mão.' : '', null);
+    };
+
+    $$(`input[name="${parte}Tipo"]`).forEach(r => r.addEventListener('change', aplicarMascara));
+    aplicarMascara();
+
+    $(`#${parte}Doc`).addEventListener('input', (e) => {
+      const pf = ($$(`input[name="${parte}Tipo"]`).find(r => r.checked) || {}).value === 'PF';
+      e.target.value = pf ? maskCpf(e.target.value) : maskCnpj(e.target.value);
+      if (!pf && digits(e.target.value).length === 14) buscarCnpj(parte);
+    });
   };
 
-  $$('input[name="autorTipo"]').forEach(r => r.addEventListener('change', aplicarMascaraAutor));
-  aplicarMascaraAutor();
-
-  $('#autorDoc').addEventListener('input', (e) => {
-    const pf = ($$('input[name="autorTipo"]').find(r => r.checked) || {}).value === 'PF';
-    e.target.value = pf ? maskCpf(e.target.value) : maskCnpj(e.target.value);
-    if (!pf && digits(e.target.value).length === 14) buscarCnpj('autor');
-  });
+  ['autor', 'segurado'].forEach(ligarTipoDocumento);
 
   [['#reuDoc', 'reu']].forEach(([sel, parte]) => {
     $(sel).addEventListener('input', (e) => {
@@ -1321,10 +1339,11 @@ function gerarPdf(d, protocolo) {
   pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.text('Formulário de Seguro Garantia Judicial', margem, 22); y = 42;
   linha('Protocolo', protocolo); linha('Gerado em', new Date().toLocaleString('pt-BR'));
   titulo('Partes');
-  linha('Autor / segurado', d.autor.nome); linha(d.autor.tipo === 'Pessoa física' ? 'CPF' : 'CNPJ', d.autor.documento); linha('Endereço do autor', d.autor.endereco);
+  linha('Tomador (réu)', d.reu.nome); linha('CNPJ do tomador', d.reu.documento); linha('Endereço do tomador', d.reu.endereco);
+  linha('Segurado', d.segurado.nome); linha(d.segurado.tipo === 'Pessoa física' ? 'CPF do segurado' : 'CNPJ do segurado', d.segurado.documento); linha('Endereço do segurado', d.segurado.endereco);
+  linha('Autor', d.autor.nome); linha(d.autor.tipo === 'Pessoa física' ? 'CPF do autor' : 'CNPJ do autor', d.autor.documento); linha('Endereço do autor', d.autor.endereco);
   if (d.menorIdade !== null) linha('Envolve menor de idade', d.menorIdade);
   if (d.representante) { linha('Representante legal', d.representante.nome); linha('CPF do representante', d.representante.cpf); }
-  linha('Réu / tomador', d.reu.nome); linha('CNPJ', d.reu.documento); linha('Endereço do réu', d.reu.endereco);
   titulo('Processo');
   linha('Número', d.processo.numero); linha('Tribunal', d.processo.tribunal); linha('Juízo / vara', d.processo.juizo); linha('Natureza', d.naturezaRotulo);
   linha('Processo administrativo', d.processo.numeroAdministrativo); linha('Tribunal Regional', d.processo.tribunalRegional);
