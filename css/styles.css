@@ -284,17 +284,13 @@ body {
 }
 
 /* ── partes ──────────────────────────────────────────────────── */
-/* tomador, segurado e autor lado a lado numa folha larga — três
-   cadastros distintos, sem precisar de rolagem extra */
+/* autor e réu lado a lado numa folha larga — a mesma informação,
+   metade da rolagem */
 
 .parties { display: grid; gap: 16px; }
 
 @media (min-width: 900px) {
   .parties { grid-template-columns: 1fr 1fr; align-items: start; }
-}
-
-@media (min-width: 1300px) {
-  .parties { grid-template-columns: 1fr 1fr 1fr; }
 }
 
 .party {
