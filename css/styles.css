@@ -324,10 +324,6 @@ body {
   color: var(--muted);
 }
 
-/* o que vale para a ação inteira vem depois dos dois cartões e precisa de
-   respiro próprio — a grade de .parties não deixa margem embaixo */
-.parties + .field { margin-top: 24px; }
-
 /* ── grades ──────────────────────────────────────────────────── */
 
 .row { display: grid; gap: 16px; margin-bottom: 16px; }
@@ -353,6 +349,10 @@ body {
 .field { display: block; margin-bottom: 16px; min-width: 0; }
 .field:last-child { margin-bottom: 0; }
 .row .field { margin-bottom: 0; }
+
+/* campo que vem logo depois de uma grade de escolhas: nem .choices nem .hint
+   deixam margem embaixo, então o respiro precisa vir daqui */
+.field-apart { margin-top: 26px; }
 
 .label {
   display: block;

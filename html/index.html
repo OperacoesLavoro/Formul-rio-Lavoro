@@ -122,33 +122,6 @@
             </div>
           </fieldset>
         </div>
-
-        <!-- a pergunta vale para a ação inteira, por isso fica fora dos dois
-             cartões; só cabe em ação cível e trabalhista, então acompanha a
-             natureza escolhida na seção 03 -->
-        <div class="field" id="menorIdadeCampo" data-only="civel trabalhista" hidden>
-          <span class="label">A ação envolve menor de idade?</span>
-          <div class="segmented" role="radiogroup" aria-label="A ação envolve menor de idade" id="menorIdadeGroup">
-            <label><input type="radio" name="menorIdade" value="sim"><span>Sim</span></label>
-            <label><input type="radio" name="menorIdade" value="nao"><span>Não</span></label>
-          </div>
-          <p class="hint">O menor age representado ou assistido: os dados do representante legal passam a ser obrigatórios.</p>
-        </div>
-
-        <div class="subform" id="representanteSub" hidden>
-          <p class="subform-head">Representante legal do menor</p>
-          <div class="row row-2">
-            <div class="field">
-              <label class="label" for="repNome">Nome do representante legal</label>
-              <input class="input" id="repNome" name="repNome" autocomplete="off">
-            </div>
-            <div class="field">
-              <label class="label" for="repCpf">CPF do representante legal</label>
-              <input class="input mono" id="repCpf" name="repCpf" inputmode="numeric"
-                     autocomplete="off" placeholder="000.000.000-00">
-            </div>
-          </div>
-        </div>
       </section>
 
       <!-- ── 02 PROCESSO ───────────────────────────────────────── -->
@@ -241,6 +214,32 @@
           </label>
         </div>
         <p class="hint hint-suggest" id="naturezaHint" hidden></p>
+
+        <!-- a pergunta nasce da natureza escolhida logo acima: só cível e
+             trabalhista a fazem, e por isso ela mora aqui, não na seção 01 -->
+        <div class="field field-apart" id="menorIdadeCampo" data-only="civel trabalhista" hidden>
+          <span class="label">A ação envolve menor de idade?</span>
+          <div class="segmented" role="radiogroup" aria-label="A ação envolve menor de idade" id="menorIdadeGroup">
+            <label><input type="radio" name="menorIdade" value="sim"><span>Sim</span></label>
+            <label><input type="radio" name="menorIdade" value="nao"><span>Não</span></label>
+          </div>
+          <p class="hint">O menor age representado ou assistido: os dados do representante legal passam a ser obrigatórios.</p>
+        </div>
+
+        <div class="subform" id="representanteSub" hidden>
+          <p class="subform-head">Representante legal do menor</p>
+          <div class="row row-2">
+            <div class="field">
+              <label class="label" for="repNome">Nome do representante legal</label>
+              <input class="input" id="repNome" name="repNome" autocomplete="off">
+            </div>
+            <div class="field">
+              <label class="label" for="repCpf">CPF do representante legal</label>
+              <input class="input mono" id="repCpf" name="repCpf" inputmode="numeric"
+                     autocomplete="off" placeholder="000.000.000-00">
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- ── 04 GARANTIA ───────────────────────────────────────── -->
