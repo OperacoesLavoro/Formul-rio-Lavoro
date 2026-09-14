@@ -999,7 +999,7 @@ function montarConferencia(d) {
   /* menorIdade nulo = a natureza escolhida nem faz a pergunta; nesse caso a
      linha não aparece, em vez de aparecer como “não informado” */
   blocos.push(g('Partes', [
-    linhaRevisao('Autor / segurado', d.autor.nome),
+    linhaRevisao('Autor', d.autor.nome),
     linhaRevisao(d.autor.tipo === 'Pessoa física' ? 'CPF' : 'CNPJ', d.autor.documento, 'mono'),
     linhaRevisao('Endereço', d.autor.endereco),
     ...(d.menorIdade === null ? [] : [linhaRevisao('Envolve menor de idade', d.menorIdade)]),
@@ -1321,7 +1321,7 @@ function gerarPdf(d, protocolo) {
   pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.text('Formulário de Seguro Garantia Judicial', margem, 22); y = 42;
   linha('Protocolo', protocolo); linha('Gerado em', new Date().toLocaleString('pt-BR'));
   titulo('Partes');
-  linha('Autor / segurado', d.autor.nome); linha(d.autor.tipo === 'Pessoa física' ? 'CPF' : 'CNPJ', d.autor.documento); linha('Endereço do autor', d.autor.endereco);
+  linha('Autor', d.autor.nome); linha(d.autor.tipo === 'Pessoa física' ? 'CPF' : 'CNPJ', d.autor.documento); linha('Endereço do autor', d.autor.endereco);
   if (d.menorIdade !== null) linha('Envolve menor de idade', d.menorIdade);
   if (d.representante) { linha('Representante legal', d.representante.nome); linha('CPF do representante', d.representante.cpf); }
   linha('Réu / tomador', d.reu.nome); linha('CNPJ', d.reu.documento); linha('Endereço do réu', d.reu.endereco);
