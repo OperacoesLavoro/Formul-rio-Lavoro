@@ -585,6 +585,10 @@ function aplicarNatureza() {
     $('#aiDestranca').removeAttribute('data-required');
   }
 
+  /* a pergunta sobre menor de idade some junto com a natureza; o
+     representante precisa sumir junto, mesmo que o “sim” continue marcado */
+  aplicarMenorIdade();
+
   /* vigência mínima: 3 anos, salvo garantia fiscal, que pede 5 */
   const min = fiscal ? 5 : 3;
   $$('#vigAnos option').forEach(o => {
@@ -600,6 +604,27 @@ function aplicarNatureza() {
   calcularVigencia();
   calcularValores();
   atualizarMedidor();
+}
+
+function menorDeIdade() {
+  const r = $$('input[name="menorIdade"]').find(x => x.checked);
+  return r ? r.value : '';
+}
+
+/* Autor menor age representado ou assistido (CC, arts. 3º e 4º; CLT, art. 793).
+   A pergunta só existe em ação cível e trabalhista; quando a resposta é “sim”,
+   nome e CPF do representante legal viram obrigatórios. */
+function aplicarMenorIdade() {
+  const nat = naturezaAtual();
+  const cabe = nat === 'civel' || nat === 'trabalhista';
+  const sim = cabe && menorDeIdade() === 'sim';
+
+  $('#representanteSub').hidden = !sim;
+  ['#repNome', '#repCpf'].forEach(sel => {
+    const el = $(sel);
+    if (sim) el.setAttribute('data-required', '');
+    else { el.removeAttribute('data-required'); el.classList.remove('is-invalid'); }
+  });
 }
 
 /* ───────────────────────────────────────────────────────────────
@@ -717,7 +742,7 @@ function calcularValores() {
 }
 
 /* ───────────────────────────────────────────────────────────────
-   9 · VIGÊNCIA
+   9 · VIGÊNCIA E PRAZO DE ENTREGA
    ─────────────────────────────────────────────────────────────── */
 
 function calcularVigencia() {
@@ -736,6 +761,29 @@ function calcularVigencia() {
   out.textContent = d.toLocaleDateString('pt-BR');
   out.classList.add('is-set');
   return d;
+}
+
+/* Data limite em que o cliente precisa da apólice — é o SLA da operação, não
+   tem relação com a vigência. Devolve os dias restantes para quem for avisar. */
+function calcularPrazoEntrega() {
+  const valor = $('#prazoEntrega').value;
+  const hint = $('#prazoEntregaHint');
+
+  if (!valor) {
+    setHint(hint, 'Data limite em que o cliente precisa da apólice emitida.');
+    return null;
+  }
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const dias = Math.round((new Date(valor + 'T00:00:00') - hoje) / 86400000);
+
+  if (dias < 0) setHint(hint, 'A data limite já passou. Confira com o cliente.', 'error');
+  else if (dias === 0) setHint(hint, 'A apólice precisa ser entregue hoje.', 'warn');
+  else if (dias <= 2) setHint(hint, `Faltam ${dias} ${dias === 1 ? 'dia' : 'dias'} — prazo apertado para a subscrição.`, 'warn');
+  else setHint(hint, `Faltam ${dias} dias para a data limite.`, 'ok');
+
+  return dias;
 }
 
 /* ───────────────────────────────────────────────────────────────
@@ -853,6 +901,12 @@ function coletar() {
 
   const total = calcularValores();
   const fim = calcularVigencia();
+  const diasEntrega = calcularPrazoEntrega();
+
+  /* a pergunta não existe fora de cível e trabalhista: ali o campo fica nulo,
+     para não afirmar “não” sobre algo que nunca foi perguntado */
+  const cabeMenor = nat === 'civel' || nat === 'trabalhista';
+  const menor = cabeMenor ? menorDeIdade() : '';
 
   return {
     natureza: nat,
@@ -864,6 +918,10 @@ function coletar() {
       nome: $('#autorNome').value.trim(),
       endereco: $('#autorEndereco').value.trim()
     },
+    menorIdade: cabeMenor ? (menor === 'sim' ? 'sim' : menor === 'nao' ? 'não' : '') : null,
+    representante: menor === 'sim'
+      ? { nome: $('#repNome').value.trim(), cpf: $('#repCpf').value.trim() }
+      : null,
     reu: {
       documento: $('#reuDoc').value,
       nome: $('#reuNome').value.trim(),
@@ -904,6 +962,10 @@ function coletar() {
       anos: Number($('#vigAnos').value) || null,
       fim: fim ? fim.toISOString().slice(0, 10) : ''
     },
+    entrega: {
+      prazo: $('#prazoEntrega').value,
+      diasRestantes: diasEntrega
+    },
     exito: ($$('input[name="exito"]').find(r => r.checked) || {}).value || '',
     advogado: {
       nome: $('#advNome').value.trim(),
@@ -934,10 +996,17 @@ function montarConferencia(d) {
 
   const blocos = [];
 
+  /* menorIdade nulo = a natureza escolhida nem faz a pergunta; nesse caso a
+     linha não aparece, em vez de aparecer como “não informado” */
   blocos.push(g('Partes', [
     linhaRevisao('Autor / segurado', d.autor.nome),
     linhaRevisao(d.autor.tipo === 'Pessoa física' ? 'CPF' : 'CNPJ', d.autor.documento, 'mono'),
     linhaRevisao('Endereço', d.autor.endereco),
+    ...(d.menorIdade === null ? [] : [linhaRevisao('Envolve menor de idade', d.menorIdade)]),
+    ...(d.representante ? [
+      linhaRevisao('Representante legal', d.representante.nome),
+      linhaRevisao('CPF do representante', d.representante.cpf, 'mono')
+    ] : []),
     linhaRevisao('Réu / tomador', d.reu.nome),
     linhaRevisao('CNPJ', d.reu.documento, 'mono'),
     linhaRevisao('Endereço', d.reu.endereco)
@@ -980,6 +1049,9 @@ function montarConferencia(d) {
     linhaRevisao('Vigência', d.vigencia.anos
       ? `${d.vigencia.anos} anos — de ${new Date(d.vigencia.inicio + 'T00:00:00').toLocaleDateString('pt-BR')} a ${new Date(d.vigencia.fim + 'T00:00:00').toLocaleDateString('pt-BR')}`
       : ''),
+    linhaRevisao('Prazo para entrega da apólice', d.entrega.prazo
+      ? new Date(d.entrega.prazo + 'T00:00:00').toLocaleDateString('pt-BR')
+      : ''),
     linhaRevisao('Probabilidade de êxito', d.exito)
   ]));
 
@@ -1005,6 +1077,12 @@ function montarConferencia(d) {
     avisos.push('O acréscimo de 30% não foi marcado.');
   if (!DEPOSITO_RECURSAL.fonte.confirmado && d.natureza === 'recursal')
     avisos.push('A tabela de depósito recursal em app.js ainda não foi atualizada.');
+  if (d.entrega.diasRestantes !== null && d.entrega.diasRestantes < 0)
+    avisos.push('A data limite para entrega da apólice já passou.');
+  else if (d.entrega.diasRestantes !== null && d.entrega.diasRestantes <= 2)
+    avisos.push('O prazo para entrega da apólice é curto para a subscrição.');
+  if (d.menorIdade === 'sim')
+    avisos.push('Autor menor de idade: a apólice precisa qualificar o representante legal.');
 
   if (avisos.length) {
     blocos.push(`<div class="review-warn"><b>Vale conferir:</b>
@@ -1161,6 +1239,10 @@ function ligarMascaras() {
     });
   });
 
+  $('#repCpf').addEventListener('input', (e) => {
+    e.target.value = maskCpf(e.target.value);
+  });
+
   $('#advOab').addEventListener('input', (e) => {
     e.target.value = digits(e.target.value).slice(0, 8);
   });
@@ -1240,6 +1322,8 @@ function gerarPdf(d, protocolo) {
   linha('Protocolo', protocolo); linha('Gerado em', new Date().toLocaleString('pt-BR'));
   titulo('Partes');
   linha('Autor / segurado', d.autor.nome); linha(d.autor.tipo === 'Pessoa física' ? 'CPF' : 'CNPJ', d.autor.documento); linha('Endereço do autor', d.autor.endereco);
+  if (d.menorIdade !== null) linha('Envolve menor de idade', d.menorIdade);
+  if (d.representante) { linha('Representante legal', d.representante.nome); linha('CPF do representante', d.representante.cpf); }
   linha('Réu / tomador', d.reu.nome); linha('CNPJ', d.reu.documento); linha('Endereço do réu', d.reu.endereco);
   titulo('Processo');
   linha('Número', d.processo.numero); linha('Tribunal', d.processo.tribunal); linha('Juízo / vara', d.processo.juizo); linha('Natureza', d.naturezaRotulo);
@@ -1249,7 +1333,9 @@ function gerarPdf(d, protocolo) {
   else { linha('Valor da causa', money(d.garantia.valorCausa)); linha('Auto de infração', d.garantia.autoInfracao); linha('Linha de defesa', d.garantia.linhaDefesa); linha('Histórico', d.garantia.historico); }
   linha('Acréscimo de 30%', d.garantia.add30 ? 'sim' : 'não'); linha('Importância segurada', money(d.garantia.importanciaSegurada));
   titulo('Condições e responsável');
-  linha('Índice', d.indice); linha('Objetivo', d.objetivo); linha('Vigência', `${d.vigencia.inicio} a ${d.vigencia.fim}`); linha('Probabilidade de êxito', d.exito);
+  linha('Índice', d.indice); linha('Objetivo', d.objetivo); linha('Vigência', `${d.vigencia.inicio} a ${d.vigencia.fim}`);
+  linha('Prazo para entrega da apólice', d.entrega.prazo ? new Date(d.entrega.prazo + 'T00:00:00').toLocaleDateString('pt-BR') : '');
+  linha('Probabilidade de êxito', d.exito);
   linha('Advogado', d.advogado.nome); linha('OAB', `${d.advogado.oab} / ${d.advogado.uf}`);
   titulo('Assinatura do responsável'); novaPagina(36);
   pdf.addImage(d.assinatura, 'PNG', margem, y, 65, 25, undefined, 'FAST'); y += 29;
@@ -1271,6 +1357,8 @@ function ligarEventos() {
   $('#ai8').addEventListener('change', aplicarTipoRecurso);
   $('#vigInicio').addEventListener('change', () => { calcularVigencia(); atualizarMedidor(); });
   $('#vigAnos').addEventListener('change', () => { calcularVigencia(); atualizarMedidor(); });
+  $('#prazoEntrega').addEventListener('change', () => { calcularPrazoEntrega(); atualizarMedidor(); });
+  $('#menorIdadeGroup').addEventListener('change', () => { aplicarMenorIdade(); atualizarMedidor(); });
   $('#btnDataJud').addEventListener('click', consultarDataJud);
 
   $('#form').addEventListener('input', (e) => {
@@ -1369,6 +1457,7 @@ function ligarEventos() {
     definirDataHoje();
     renderDecoder();
     aplicarNatureza();
+    calcularPrazoEntrega();
     window.scrollTo({ top: 0 });
   });
 }
@@ -1391,6 +1480,7 @@ function iniciar() {
   definirDataHoje();
   renderDecoder();
   aplicarNatureza();
+  calcularPrazoEntrega();
   $('.index a[data-idx="s1"]').classList.add('is-active');
 }
 

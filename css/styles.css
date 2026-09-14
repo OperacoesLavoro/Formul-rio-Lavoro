@@ -324,6 +324,10 @@ body {
   color: var(--muted);
 }
 
+/* o que vale para a ação inteira vem depois dos dois cartões e precisa de
+   respiro próprio — a grade de .parties não deixa margem embaixo */
+.parties + .field { margin-top: 24px; }
+
 /* ── grades ──────────────────────────────────────────────────── */
 
 .row { display: grid; gap: 16px; margin-bottom: 16px; }
