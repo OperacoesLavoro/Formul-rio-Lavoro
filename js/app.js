@@ -457,7 +457,7 @@ async function consultarDataJud() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ numeroProcesso: numero }),
-      signal: AbortSignal.timeout(20000)
+      signal: AbortSignal.timeout(35000)
     });
     const contentType = response.headers.get('Content-Type') || '';
     if (!contentType.includes('application/json')) {

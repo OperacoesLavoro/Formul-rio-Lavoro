@@ -50,7 +50,10 @@ export async function consultarProcesso({ numero, alias }, apiKey) {
       body: JSON.stringify({ size: 10, query: { match: { numeroProcesso: numero } },
         _source: ['grau', 'orgaoJulgador.nome', 'classe.nome', 'assuntos.nome',
           'dataAjuizamento', 'movimentos.grau', 'movimentos.dataHora', 'movimentos.nome'] }),
-      signal: AbortSignal.timeout(15000)
+      /* A API oficial pode levar alguns segundos para consultar todos os
+         shards do tribunal. O timeout anterior de 15 s encerrava consultas
+         vÃ¡lidas, especialmente no TJ-RJ. */
+      signal: AbortSignal.timeout(30000)
     });
   } catch (error) {
     if (error.name === 'TimeoutError' || error.name === 'AbortError') {
