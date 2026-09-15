@@ -1134,6 +1134,25 @@ body {
 .pdf-export .btn-lookup,
 .pdf-export .signature-actions,
 .pdf-export .signature-placeholder { display: none; }
+.pdf-field-value {
+  display: block;
+  width: 100%;
+  min-height: 43px;
+  padding: 10px 14px;
+  color: var(--ink);
+  background: var(--field);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  font-size: 13.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.pdf-field-value.is-empty {
+  color: var(--muted-2);
+  font-style: italic;
+}
 .pdf-export-meta {
   display: flex;
   align-items: baseline;

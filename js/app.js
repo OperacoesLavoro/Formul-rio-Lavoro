@@ -1418,22 +1418,27 @@ async function gerarPdf(d, protocolo) {
       folhaClonada.querySelector('.colophon')?.remove();
 
       /* cloneNode nÃ£o copia propriedades vivas de inputs, selects e canvas. */
-      folha.querySelectorAll('input, textarea, select').forEach(original => {
-        if (!original.id) return;
-        const copia = documento.getElementById(original.id);
-        if (!copia) return;
-        if (original.tagName === 'INPUT') {
+      const controles = folha.querySelectorAll('input, textarea, select');
+      controles.forEach(original => {
+        const candidatos = original.id
+          ? [documento.getElementById(original.id)]
+          : Array.from(documento.querySelectorAll(original.tagName.toLowerCase()))
+            .filter(copia => copia.name === original.name && copia.value === original.value);
+        const copia = candidatos.find(Boolean);
+        if (!copia || original.type === 'hidden') return;
+
+        if (original.tagName === 'INPUT' && ['radio', 'checkbox'].includes(original.type)) {
           copia.checked = original.checked;
-          copia.value = original.value;
-        } else if (original.tagName === 'TEXTAREA') {
-          copia.value = original.value;
-          copia.textContent = original.value;
-        } else if (original.tagName === 'SELECT') {
-          copia.value = original.value;
-          Array.from(copia.options).forEach((option, indice) => {
-            option.selected = original.options[indice]?.selected ?? false;
-          });
+          return;
         }
+
+        const valor = original.tagName === 'SELECT'
+          ? Array.from(original.selectedOptions).map(option => option.textContent.trim()).join(', ')
+          : original.value.trim();
+        const saida = documento.createElement('div');
+        saida.className = 'pdf-field-value' + (valor ? '' : ' is-empty');
+        saida.textContent = valor || 'NÃ£o informado';
+        copia.replaceWith(saida);
       });
 
       const assinaturaOriginal = folha.querySelector('#signatureCanvas');
