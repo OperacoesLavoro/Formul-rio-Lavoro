@@ -1418,13 +1418,13 @@ async function gerarPdf(d, protocolo) {
       folhaClonada.querySelector('.colophon')?.remove();
 
       /* cloneNode nÃ£o copia propriedades vivas de inputs, selects e canvas. */
-      const controles = folha.querySelectorAll('input, textarea, select');
-      controles.forEach(original => {
-        const candidatos = original.id
-          ? [documento.getElementById(original.id)]
-          : Array.from(documento.querySelectorAll(original.tagName.toLowerCase()))
-            .filter(copia => copia.name === original.name && copia.value === original.value);
-        const copia = candidatos.find(Boolean);
+      const controles = Array.from(folha.querySelectorAll('input, textarea, select'));
+      const controlesClonados = Array.from(folhaClonada.querySelectorAll('input, textarea, select'));
+      controles.forEach((original, indice) => {
+        /* A ordem dos controles é preservada no clone. Usá-la evita depender
+           de IDs e garante que rádio, checkbox e campos repetidos correspondam
+           exatamente ao formulário preenchido. */
+        const copia = controlesClonados[indice];
         if (!copia || original.type === 'hidden') return;
 
         if (original.tagName === 'INPUT' && ['radio', 'checkbox'].includes(original.type)) {
@@ -1438,6 +1438,7 @@ async function gerarPdf(d, protocolo) {
         const saida = documento.createElement('div');
         saida.className = 'pdf-field-value' + (valor ? '' : ' is-empty');
         saida.textContent = valor || 'NÃ£o informado';
+        if (!valor) saida.textContent = 'Nao informado';
         copia.replaceWith(saida);
       });
 
