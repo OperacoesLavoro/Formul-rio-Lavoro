@@ -426,7 +426,9 @@
         <div class="row row-3">
           <div class="field">
             <label class="label" for="vigInicio">Início de vigência</label>
-            <input class="input" type="date" id="vigInicio" name="vigInicio" data-required>
+            <input class="input mono date-br" type="text" id="vigInicio" name="vigInicio"
+                   inputmode="numeric" autocomplete="off" placeholder="dd/mm/aaaa"
+                   data-date-br="true" data-required>
           </div>
           <div class="field">
             <label class="label" for="vigAnos">Prazo</label>
@@ -451,7 +453,9 @@
         <div class="row row-3">
           <div class="field">
             <label class="label" for="prazoEntrega">Prazo para entrega da apólice</label>
-            <input class="input" type="date" id="prazoEntrega" name="prazoEntrega" data-required>
+            <input class="input mono date-br" type="text" id="prazoEntrega" name="prazoEntrega"
+                   inputmode="numeric" autocomplete="off" placeholder="dd/mm/aaaa"
+                   data-date-br="true" data-required>
             <p class="hint" id="prazoEntregaHint">Data limite em que o cliente precisa da apólice emitida.</p>
           </div>
         </div>

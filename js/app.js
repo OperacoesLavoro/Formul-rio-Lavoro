@@ -138,6 +138,39 @@ function maskCnj(v) {
   return out;
 }
 
+function isoDaDataBr(valor) {
+  const d = digits(valor);
+  if (d.length !== 8) return '';
+
+  const dia = Number(d.slice(0, 2));
+  const mes = Number(d.slice(2, 4));
+  const ano = Number(d.slice(4, 8));
+  const data = new Date(Date.UTC(ano, mes - 1, dia));
+  if (data.getUTCFullYear() !== ano || data.getUTCMonth() !== mes - 1 || data.getUTCDate() !== dia) return '';
+  return `${String(ano).padStart(4, '0')}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+}
+
+function dataBrDaIso(iso) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : '';
+}
+
+function mascararDataBr(campo) {
+  const valor = campo.value;
+  const d = digits(valor).slice(0, 8);
+  campo.value = d
+    .replace(/^(\d{2})(\d)/, '$1/$2')
+    .replace(/^(\d{2})\/(\d{2})(\d)/, '$1/$2/$3');
+  campo.dataset.iso = isoDaDataBr(campo.value);
+  campo.setCustomValidity(campo.value && !campo.dataset.iso ? 'Informe uma data vÃ¡lida.' : '');
+  return campo.dataset.iso;
+}
+
+function isoDoCampoData(id) {
+  const campo = $('#' + id);
+  return campo?.dataset.iso || isoDaDataBr(campo?.value);
+}
+
 /* ───────────────────────────────────────────────────────────────
    4 · DECODIFICADOR DO NÚMERO CNJ
    NNNNNNN-DD.AAAA.J.TR.OOOO — cada campo carrega um dado.
@@ -746,7 +779,7 @@ function calcularValores() {
    ─────────────────────────────────────────────────────────────── */
 
 function calcularVigencia() {
-  const inicio = $('#vigInicio').value;
+  const inicio = isoDoCampoData('vigInicio');
   const anos = Number($('#vigAnos').value);
   const out = $('#vigFim');
 
@@ -766,7 +799,7 @@ function calcularVigencia() {
 /* Data limite em que o cliente precisa da apólice — é o SLA da operação, não
    tem relação com a vigência. Devolve os dias restantes para quem for avisar. */
 function calcularPrazoEntrega() {
-  const valor = $('#prazoEntrega').value;
+  const valor = isoDoCampoData('prazoEntrega');
   const hint = $('#prazoEntregaHint');
 
   if (!valor) {
@@ -795,6 +828,7 @@ function campoValido(el) {
     return $$(`input[name="${el.name}"]`).some(r => r.checked);
   }
   if (el.classList.contains('input-money')) return centavosDe(el) > 0;
+  if (el.dataset.dateBr === 'true') return Boolean(isoDoCampoData(el.id));
   return el.value.trim() !== '';
 }
 
@@ -958,12 +992,12 @@ function coletar() {
     indice: $('#indice').value,
     objetivo: $('#objetivo').value.trim(),
     vigencia: {
-      inicio: $('#vigInicio').value,
+      inicio: isoDoCampoData('vigInicio'),
       anos: Number($('#vigAnos').value) || null,
       fim: fim ? fim.toISOString().slice(0, 10) : ''
     },
     entrega: {
-      prazo: $('#prazoEntrega').value,
+      prazo: isoDoCampoData('prazoEntrega'),
       diasRestantes: diasEntrega
     },
     exito: ($$('input[name="exito"]').find(r => r.checked) || {}).value || '',
@@ -1225,6 +1259,19 @@ function ligarMascaras() {
     const p = renderDecoder();
     sugerirNatureza(p);
     sugerirTrt(p);
+  });
+
+  $$('[data-date-br="true"]').forEach(campo => {
+    campo.addEventListener('input', () => {
+      mascararDataBr(campo);
+      if (campo.id === 'vigInicio') calcularVigencia();
+      if (campo.id === 'prazoEntrega') calcularPrazoEntrega();
+      atualizarMedidor();
+    });
+    campo.addEventListener('blur', () => {
+      mascararDataBr(campo);
+      if (campo.value && !campo.dataset.iso) campo.classList.add('is-invalid');
+    });
   });
 
   /* valores em reais */
@@ -1536,6 +1583,11 @@ function ligarEventos() {
   $('#btnLimpar').addEventListener('click', () => {
     if (!confirm('Limpar todos os campos do formulário?')) return;
     $('#form').reset();
+    $$('[data-date-br="true"]').forEach(campo => {
+      campo.value = '';
+      delete campo.dataset.iso;
+      campo.setCustomValidity('');
+    });
     $$('.input-money').forEach(el => { el.dataset.cents = '0'; });
     $$('.input').forEach(el => el.classList.remove('is-filled', 'is-invalid'));
     $$('.hint[data-status], #dataJudStatus').forEach(el => setHint(el, ''));
@@ -1553,7 +1605,10 @@ function ligarEventos() {
 
 function definirDataHoje() {
   const hoje = new Date();
-  $('#vigInicio').value = hoje.toISOString().slice(0, 10);
+  const iso = hoje.toISOString().slice(0, 10);
+  const campo = $('#vigInicio');
+  campo.value = dataBrDaIso(iso);
+  campo.dataset.iso = iso;
 }
 
 /* ── partida ─────────────────────────────────────────────────── */
