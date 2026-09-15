@@ -1121,6 +1121,11 @@ body {
 .pdf-export + .colophon { display: none; }
 .pdf-export .form { padding-top: 0; }
 .pdf-export .block { break-inside: avoid; }
+.pdf-export,
+.pdf-export * {
+  animation: none !important;
+  transition: none !important;
+}
 .pdf-export .field,
 .pdf-export .row,
 .pdf-export .party,
