@@ -1301,7 +1301,7 @@ function iniciarAssinatura() {
   });
 }
 
-function gerarPdf(d, protocolo) {
+function gerarPdfTextoLegado(d, protocolo) {
   if (!window.jspdf?.jsPDF) throw new Error('Gerador de PDF indisponível.');
   const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
   const margem = 18;
@@ -1340,6 +1340,95 @@ function gerarPdf(d, protocolo) {
   titulo('Assinatura do responsável'); novaPagina(36);
   pdf.addImage(d.assinatura, 'PNG', margem, y, 65, 25, undefined, 'FAST'); y += 29;
   pdf.setDrawColor(130, 146, 157); pdf.line(margem, y, margem + 75, y); pdf.setFontSize(8); pdf.text('Assinatura fornecida eletronicamente', margem, y + 4);
+  pdf.save(`proposta-garantia-${(d.processo.numero || protocolo).replace(/\D/g, '')}.pdf`);
+}
+
+async function gerarPdf(d, protocolo) {
+  if (!window.jspdf?.jsPDF) throw new Error('Gerador de PDF indisponÃ­vel.');
+  if (typeof window.html2canvas !== 'function') throw new Error('Renderizador visual do PDF indisponÃ­vel.');
+
+  const folha = document.querySelector('.sheet');
+  if (!folha) throw new Error('Folha do formulÃ¡rio nÃ£o encontrada.');
+
+  /* A captura usa uma largura de folha conhecida. Assim o resultado nÃ£o muda
+     entre celular, notebook e monitor ultrawide, mas continua usando as
+     mesmas regras responsivas do HTML. */
+  const larguraFolha = 794;
+  if (document.fonts?.ready) await document.fonts.ready;
+  const canvas = await window.html2canvas(folha, {
+    backgroundColor: '#ffffff',
+    scale: 2,
+    useCORS: true,
+    logging: false,
+    windowWidth: larguraFolha,
+    onclone: documento => {
+      const folhaClonada = documento.querySelector('.sheet');
+      if (!folhaClonada) return;
+
+      folhaClonada.classList.add('pdf-export');
+      folhaClonada.querySelector('.index')?.remove();
+      folhaClonada.querySelector('.actions')?.remove();
+      folhaClonada.querySelector('.colophon')?.remove();
+
+      /* cloneNode nÃ£o copia propriedades vivas de inputs, selects e canvas. */
+      folha.querySelectorAll('input, textarea, select').forEach(original => {
+        if (!original.id) return;
+        const copia = documento.getElementById(original.id);
+        if (!copia) return;
+        if (original.tagName === 'INPUT') {
+          copia.checked = original.checked;
+          copia.value = original.value;
+        } else if (original.tagName === 'TEXTAREA') {
+          copia.value = original.value;
+          copia.textContent = original.value;
+        } else if (original.tagName === 'SELECT') {
+          copia.value = original.value;
+          Array.from(copia.options).forEach((option, indice) => {
+            option.selected = original.options[indice]?.selected ?? false;
+          });
+        }
+      });
+
+      const assinaturaOriginal = folha.querySelector('#signatureCanvas');
+      const assinaturaClonada = folhaClonada.querySelector('#signatureCanvas');
+      if (assinaturaOriginal && assinaturaClonada && assinaturaOriginal.width > 0 && assinaturaOriginal.height > 0) {
+        const imagem = documento.createElement('img');
+        imagem.src = assinaturaOriginal.toDataURL('image/png');
+        imagem.alt = 'Assinatura desenhada pelo responsÃ¡vel';
+        imagem.style.cssText = 'display:block;width:100%;height:100%;object-fit:contain;';
+        assinaturaClonada.replaceWith(imagem);
+      }
+
+      const meta = documento.createElement('div');
+      meta.className = 'pdf-export-meta';
+      const protocoloEl = documento.createElement('strong');
+      protocoloEl.textContent = `Protocolo ${protocolo}`;
+      const geradoEl = documento.createElement('span');
+      geradoEl.textContent = `Gerado em ${new Date().toLocaleString('pt-BR')}`;
+      meta.append(protocoloEl, geradoEl);
+      folhaClonada.querySelector('.masthead')?.after(meta);
+    }
+  });
+
+  const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', compress: true });
+  const larguraPaginaMm = 210;
+  const alturaPaginaMm = 297;
+  const alturaFatiaPx = Math.floor(canvas.width * alturaPaginaMm / larguraPaginaMm);
+
+  for (let topo = 0, pagina = 0; topo < canvas.height; topo += alturaFatiaPx, pagina += 1) {
+    if (pagina > 0) pdf.addPage();
+    const alturaAtualPx = Math.min(alturaFatiaPx, canvas.height - topo);
+    const paginaCanvas = document.createElement('canvas');
+    paginaCanvas.width = canvas.width;
+    paginaCanvas.height = alturaAtualPx;
+    paginaCanvas.getContext('2d').drawImage(
+      canvas, 0, topo, canvas.width, alturaAtualPx,
+      0, 0, canvas.width, alturaAtualPx
+    );
+    const alturaAtualMm = alturaAtualPx * larguraPaginaMm / canvas.width;
+    pdf.addImage(paginaCanvas.toDataURL('image/png'), 'PNG', 0, 0, larguraPaginaMm, alturaAtualMm, undefined, 'FAST');
+  }
+
   pdf.save(`proposta-garantia-${(d.processo.numero || protocolo).replace(/\D/g, '')}.pdf`);
 }
 
@@ -1411,7 +1500,7 @@ function ligarEventos() {
     if (e.target === $('#scrim')) fecharModal('scrim');
   });
 
-  $('#btnEnviar').addEventListener('click', () => {
+  $('#btnEnviar').addEventListener('click', async () => {
     const d = coletar();
     window.__proposta = d;
 
@@ -1426,7 +1515,7 @@ function ligarEventos() {
     fecharModal('scrim');
     abrirModal('scrimOk');
     try {
-      gerarPdf(d, protocolo);
+      await gerarPdf(d, protocolo);
     } catch (erro) {
       console.error(erro);
       alert('A proposta foi revisada, mas não foi possível gerar o PDF. Use o botão de download para tentar novamente.');
@@ -1435,9 +1524,9 @@ function ligarEventos() {
 
   $('#btnFechar').addEventListener('click', () => fecharModal('scrimOk'));
 
-  $('#btnBaixar').addEventListener('click', () => {
+  $('#btnBaixar').addEventListener('click', async () => {
     try {
-      gerarPdf(window.__proposta || coletar(), protocoloAtual);
+      await gerarPdf(window.__proposta || coletar(), protocoloAtual);
     } catch (erro) {
       console.error(erro);
       alert('Não foi possível gerar o PDF. Recarregue a página e tente novamente.');

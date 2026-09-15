@@ -1105,3 +1105,44 @@ body {
   .body { box-shadow: none; grid-template-columns: 1fr; }
   .block { break-inside: avoid; }
 }
+
+/* ExportaÃ§Ã£o visual: a mesma folha responsiva usada na tela, sem os controles. */
+.pdf-export {
+  width: 794px;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+}
+.pdf-export .masthead { border-radius: 0; }
+.pdf-export .body { grid-template-columns: 1fr; box-shadow: none; }
+.pdf-export .index,
+.pdf-export .actions,
+.pdf-export + .colophon { display: none; }
+.pdf-export .form { padding-top: 0; }
+.pdf-export .block { break-inside: avoid; }
+.pdf-export .field,
+.pdf-export .row,
+.pdf-export .party,
+.pdf-export .branch,
+.pdf-export .subform { animation: none !important; }
+.pdf-export .btn-lookup,
+.pdf-export .signature-actions,
+.pdf-export .signature-placeholder { display: none; }
+.pdf-export-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 36px;
+  background: var(--field-flat);
+  border-bottom: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 11px;
+}
+.pdf-export-meta strong {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+}
