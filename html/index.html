@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260915-pdf-fields">
+<link rel="stylesheet" href="styles.css?v=20260916-identificacao">
 </head>
 <body>
 
@@ -21,7 +21,70 @@
 
 <div class="backdrop" aria-hidden="true"></div>
 
-<div class="sheet">
+<!-- ══ TELA 1 · IDENTIFICAÇÃO DO RESPONSÁVEL ═══════════════════ -->
+<!-- Tela de entrada, antes do formulário. Guarda quem está preenchendo a
+     cotação; esses quatro campos entram em coletar().responsavel e seguem
+     junto do restante do payload — ver js/app.js, bloco "13 · MONTAGEM /
+     Tela 1". -->
+<div class="sheet sheet-gate" id="gateSheet">
+  <header class="masthead">
+    <img class="masthead-logo" src="Logo_Lavoro%20(Branca).png" alt="Lavoro Seguros">
+    <div class="masthead-title">
+      <h1>Formulário Seguro Garantia</h1>
+      <p>Garantia judicial e recursal &middot; proposta de cotação</p>
+    </div>
+  </header>
+
+  <div class="body-gate">
+    <section class="block">
+      <div class="block-head">
+        <span class="eyebrow">Antes de começar</span>
+        <h2>Quem está preenchendo esta cotação?</h2>
+        <p class="block-sub">Usamos estes dados para identificar, junto ao time da Lavoro, quem é o responsável por este envio.</p>
+      </div>
+
+      <form class="form" id="gateForm" novalidate>
+        <div class="field">
+          <label class="label" for="respEmpresa">Empresa</label>
+          <input class="input" id="respEmpresa" name="respEmpresa" autocomplete="organization" data-required>
+        </div>
+
+        <div class="field">
+          <label class="label" for="respNome">Nome completo</label>
+          <input class="input" id="respNome" name="respNome" autocomplete="name" data-required>
+        </div>
+
+        <div class="row row-2">
+          <div class="field">
+            <label class="label" for="respEmail">E-mail</label>
+            <input class="input" id="respEmail" name="respEmail" type="email" inputmode="email"
+                   autocomplete="email" placeholder="nome@empresa.com.br" data-required>
+          </div>
+          <div class="field">
+            <label class="label" for="respTelefone">Telefone / celular</label>
+            <input class="input mono" id="respTelefone" name="respTelefone" inputmode="tel"
+                   autocomplete="tel" placeholder="(00) 00000-0000" data-required>
+          </div>
+        </div>
+
+        <footer class="actions">
+          <p class="actions-note" id="gateNote">Preencha os campos para continuar.</p>
+          <div class="actions-btns">
+            <button class="btn" type="submit" id="btnGateContinuar">Continuar</button>
+          </div>
+        </footer>
+      </form>
+    </section>
+  </div>
+
+  <p class="colophon">
+    Lavoro Seguros &middot; formulário de cotação de seguro garantia judicial
+    <span class="colophon-sep">/</span> amostra de interface
+  </p>
+</div>
+
+<!-- ══ FORMULÁRIO · só aparece depois da Tela 1 ═══════════════ -->
+<div class="sheet" id="formSheet" hidden>
 
   <!-- ══ MASTHEAD ══════════════════════════════════════════════ -->
   <header class="masthead">
@@ -554,6 +617,7 @@
         <input type="checkbox" id="confirmCheck">
         <span>Revisei os dados e confirmo que estão corretos.</span>
       </label>
+      <p class="hint" id="envioStatus" role="status" aria-live="polite"></p>
       <div class="modal-btns">
         <button class="btn-quiet" type="button" id="btnVoltar">Voltar e corrigir</button>
         <button class="btn" type="button" id="btnEnviar" disabled>Enviar proposta</button>
@@ -566,9 +630,9 @@
 <div class="scrim" id="scrimOk" hidden>
   <div class="modal modal-ok" role="dialog" aria-modal="true" aria-labelledby="okTitle">
     <header class="modal-head">
-      <span class="eyebrow">Protocolo</span>
-      <h2 id="okTitle">Proposta registrada</h2>
-      <p>Amostra de interface — nada foi transmitido. O protocolo abaixo é gerado localmente.</p>
+      <span class="eyebrow">Envio confirmado</span>
+      <h2 id="okTitle">Formulário enviado com sucesso!</h2>
+      <p>Seu formulário foi encaminhado ao time responsável. O retorno será realizado em até 72 horas. Guarde o protocolo abaixo; o PDF também foi baixado neste dispositivo.</p>
     </header>
     <div class="modal-body">
       <div class="ledger">
@@ -596,8 +660,8 @@
 </div>
 
 <script src="signature_pad.umd.min.js"></script>
-<script src="html2canvas.min.js?v=20260915-pdf-fields"></script>
+<script src="html2canvas.min.js?v=20260916-identificacao"></script>
 <script src="jspdf.umd.min.js"></script>
-<script src="app.js?v=20260915-pdf-fields"></script>
+<script src="app.js?v=20260916-identificacao"></script>
 </body>
 </html>

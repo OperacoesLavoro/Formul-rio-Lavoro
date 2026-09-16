@@ -21,12 +21,29 @@ O time abre um link HTTPS; não precisa instalar Node nem iniciar um proxy local
 4. Depois do primeiro deploy, abra o Worker em **Settings → Variables & Secrets** e adicione um **Secret de runtime** chamado `DATAJUD_APIKEY`.
    Copie apenas o valor da chave vigente em <https://datajud-wiki.cnj.jus.br/api-publica/acesso/>, sem `Authorization:` nem `APIKey `.
    Salve/aplique a alteração e publique a versão atualizada, se solicitado pelo painel. Uma variável apenas de build não atende a essa configuração.
-5. Abra a URL HTTPS indicada pelo Cloudflare. Em `/diagnostico.html`, verifique se o Worker encontrou a configuração.
-6. No formulário, consulte um processo público conhecido e confira os dados retornados. O diagnóstico verifica a presença da configuração, não a autenticação no CNJ.
-7. Compartilhe o link do formulário com o time. Alterações enviadas à branch conectada podem gerar novos deploys automáticos.
+5. No mesmo lugar, configure o envio da proposta ao Hub:
+
+   | Nome | Tipo | Conteúdo |
+   | --- | --- | --- |
+   | `HUB_SUBMIT_URL` | variável de runtime | URL HTTPS completa do endpoint server-side do Hub que recebe a proposta |
+   | `HUB_WEBHOOK_SECRET` | **Secret** de runtime | token da autenticação servidor a servidor, só o valor, sem `Bearer ` |
+
+   O Hub roda em Lovable, que exige o prefixo `/api/public/` nas rotas abertas. O endereço a
+   configurar é `https://<hub>/api/public/garantia-judicial-submit` — com o prefixo e com hífen
+   antes de `submit`. Informe a URL exata, sem barra no fim: o Worker não segue redirecionamento
+   (para não repassar o token a outro endereço) e responde `HUB_REDIRECT` se o Hub devolver 3xx.
+
+   Esse endereço não aparece em lugar nenhum do código: o Worker só lê `HUB_SUBMIT_URL`. Mudar o
+   caminho no Hub é alterar essa variável no painel, sem novo deploy do formulário.
+
+   Sem as duas, o envio responde com `HUB_CONFIG` e nada é encaminhado. O token existe apenas no Worker: não vai para o HTML, para o JavaScript nem para log algum.
+
+6. Abra a URL HTTPS indicada pelo Cloudflare. Em `/diagnostico.html`, verifique se o Worker encontrou a configuração.
+7. No formulário, consulte um processo público conhecido e confira os dados retornados. O diagnóstico verifica a presença da configuração do CNJ, não a autenticação no CNJ nem o envio ao Hub.
+8. Compartilhe o link do formulário com o time. Alterações enviadas à branch conectada podem gerar novos deploys automáticos.
 
 O formulário abre sem a chave, mas a consulta retorna uma mensagem de configuração pendente até o Secret ser definido.
-Não é necessário editar `js/app.js` com a URL do Worker: a chamada usa `/api/datajud` no mesmo domínio.
+Não é necessário editar `js/app.js` com a URL do Worker nem com o endereço do Hub: as chamadas usam `/api/datajud` e `/api/garantia-judicial/submit` no mesmo domínio.
 
 ## Desenvolvimento e validação
 
@@ -36,8 +53,9 @@ Requer Node.js 22 ou superior.
 npm ci
 ```
 
-Copie `.dev.vars.example` para `.dev.vars` e preencha `DATAJUD_APIKEY` localmente.
-O Wrangler carrega esse arquivo; ele está ignorado pelo Git. Não envie credenciais ao repositório.
+Copie `.dev.vars.example` para `.dev.vars` e preencha `DATAJUD_APIKEY`, `HUB_SUBMIT_URL` e `HUB_WEBHOOK_SECRET` localmente.
+Use o endereço e o token de homologação do Hub, nunca os de produção.
+O Wrangler carrega esse arquivo; ele está ignorado pelo Git (`.dev.vars`, `.dev.vars.*`, `.env`, `.env.*`). Não envie credenciais ao repositório.
 
 ```sh
 npm run check
@@ -56,6 +74,7 @@ Para publicação manual autenticada na sua conta: `npm run deploy`.
 - `assets/`: logo e imagem de fundo.
 - `src/worker.mjs`: rotas HTTP, origem, limite de chamadas e respostas de erro.
 - `src/services/datajud.mjs`: validação CNJ, seleção de tribunal e chamada à API.
+- `src/services/hub.mjs`: validação do envio (payload + PDF) e encaminhamento autenticado ao Hub.
 - `src/utils/http.mjs`: leitura limitada de JSON e respostas HTTP.
 - `scripts/build.mjs`: copia a lista explícita de `html/`, `css/`, `js/`, `assets/` e `_headers`
   para `dist/` no formato plano que o Worker publica — a organização por tipo é só do código-fonte.
@@ -67,6 +86,20 @@ O servidor valida tamanho e dígito verificador, deriva o tribunal e monta uma c
 Não aceita URL externa, índice arbitrário nem DSL Elasticsearch do cliente.
 A chave fica no servidor. Respostas da consulta usam `Cache-Control: no-store`.
 O proxy não grava o formulário ou os números dos processos em banco nem em logs de aplicação.
+
+`POST /api/garantia-judicial/submit` recebe `multipart/form-data` com dois campos: `payload`
+(JSON com `protocolo`, `geradoEm` e `formulario`, o mesmo objeto montado por `coletar()`) e
+`pdf` (o arquivo que o navegador acabou de gerar e baixar). `payload` vai como campo de
+texto puro — anexado como arquivo, com nome, o envio é recusado com 400. O Worker confere formato, tamanho
+e a assinatura `%PDF-` do arquivo, remonta o multipart e encaminha a `HUB_SUBMIT_URL` com
+`Authorization: Bearer <HUB_WEBHOOK_SECRET>`. Qualquer resposta 2xx do Hub confirma o
+recebimento; o Worker não espera consulta de seguradoras. Nada do envio vai para log: só
+`{ evento, codigo, upstreamStatus }` em caso de falha.
+
+São dois endereços diferentes, e nenhum precisa casar com o outro:
+`/api/garantia-judicial/submit` é a rota deste Worker, no mesmo domínio do formulário, e é a
+única que o navegador conhece; o endereço do Hub (`/api/public/garantia-judicial-submit`, no
+domínio dele) existe só dentro de `HUB_SUBMIT_URL`, do lado do servidor.
 
 ## Acesso e limites
 
@@ -80,7 +113,8 @@ O backend espera até 15 segundos pelo CNJ; o navegador espera até 20 segundos 
 
 A API pode não conter o processo consultado. O preenchimento usa órgão julgador e movimentações, incluindo classe/assuntos quando disponíveis; campos já preenchidos são preservados.
 Partes e valor da causa continuam manuais. A consulta de CNPJ existente usa serviços externos separados.
-O envio do formulário mantém o comportamento local existente; este projeto não adiciona recebimento de propostas em um backend.
+O envio da proposta entrega os dados e o PDF ao Hub pelo Worker; o protocolo e o PDF continuam sendo gerados no navegador.
+Este projeto não consulta seguradoras, não gera planilha, não envia e-mail e não acessa banco de dados — isso é responsabilidade do Hub.
 
 ## Referências
 

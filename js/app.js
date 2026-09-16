@@ -6,6 +6,9 @@
 
 let assinatura = null;
 let protocoloAtual = '';
+/* Preenchido pela Tela 1 (gate de identificação), antes de liberar o
+   formulário. Segue dentro de coletar().responsavel — ver bloco 13. */
+let responsavel = null;
 
 /* ───────────────────────────────────────────────────────────────
    1 · TABELA DE DEPÓSITO RECURSAL
@@ -125,6 +128,19 @@ function maskCnpj(v) {
     .replace(/\.(\d{3})(\d)/, '.$1/$2')
     .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
 }
+
+/* (00) 0000-0000 ou (00) 00000-0000 — cresce para celular a partir do 11º dígito */
+function maskTelefone(v) {
+  const d = digits(v).slice(0, 11);
+  if (d.length <= 2) return d.replace(/^(\d*)$/, '($1');
+  const ddd = d.slice(0, 2);
+  const resto = d.slice(2);
+  if (resto.length <= 4) return `(${ddd}) ${resto}`;
+  if (d.length <= 10) return `(${ddd}) ${resto.slice(0, 4)}-${resto.slice(4)}`;
+  return `(${ddd}) ${resto.slice(0, 5)}-${resto.slice(5)}`;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /* 0000000-00.0000.0.00.0000 */
 function maskCnj(v) {
@@ -943,6 +959,10 @@ function coletar() {
   const menor = cabeMenor ? menorDeIdade() : '';
 
   return {
+    /* capturado na Tela 1, antes do formulário — ver ligarGate() no bloco 13.
+       Preparado para o payload do Hub; o Hub ainda não lê este campo (ver
+       SPEC.md, seção "Envio ao Hub" e src/services/hub.mjs). */
+    responsavel: responsavel ? { ...responsavel } : null,
     natureza: nat,
     naturezaRotulo: rotuloNat,
     autor: {
@@ -1029,6 +1049,15 @@ function montarConferencia(d) {
     `<div class="review-group"><h3>${titulo}</h3>${linhas.join('')}</div>`;
 
   const blocos = [];
+
+  if (d.responsavel) {
+    blocos.push(g('Responsável pelo envio', [
+      linhaRevisao('Empresa', d.responsavel.empresa),
+      linhaRevisao('Nome completo', d.responsavel.nome),
+      linhaRevisao('E-mail', d.responsavel.email),
+      linhaRevisao('Telefone / celular', d.responsavel.telefone, 'mono')
+    ]));
+  }
 
   /* menorIdade nulo = a natureza escolhida nem faz a pergunta; nesse caso a
      linha não aparece, em vez de aparecer como “não informado” */
@@ -1390,11 +1419,13 @@ function gerarPdfTextoLegado(d, protocolo) {
   pdf.save(`proposta-garantia-${(d.processo.numero || protocolo).replace(/\D/g, '')}.pdf`);
 }
 
-async function gerarPdf(d, protocolo) {
+async function gerarPdf(d, protocolo, { baixar = true } = {}) {
   if (!window.jspdf?.jsPDF) throw new Error('Gerador de PDF indisponÃ­vel.');
   if (typeof window.html2canvas !== 'function') throw new Error('Renderizador visual do PDF indisponÃ­vel.');
 
-  const folha = document.querySelector('.sheet');
+  /* #formSheet, não '.sheet': a Tela 1 (gate de identificação) também tem
+     essa classe, e fica antes dela no DOM. */
+  const folha = document.querySelector('#formSheet');
   if (!folha) throw new Error('Folha do formulÃ¡rio nÃ£o encontrada.');
 
   /* A captura usa uma largura de folha conhecida. Assim o resultado nÃ£o muda
@@ -1409,7 +1440,7 @@ async function gerarPdf(d, protocolo) {
     logging: false,
     windowWidth: larguraFolha,
     onclone: documento => {
-      const folhaClonada = documento.querySelector('.sheet');
+      const folhaClonada = documento.querySelector('#formSheet');
       if (!folhaClonada) return;
 
       folhaClonada.classList.add('pdf-export');
@@ -1459,7 +1490,28 @@ async function gerarPdf(d, protocolo) {
       const geradoEl = documento.createElement('span');
       geradoEl.textContent = `Gerado em ${new Date().toLocaleString('pt-BR')}`;
       meta.append(protocoloEl, geradoEl);
-      folhaClonada.querySelector('.masthead')?.after(meta);
+
+      /* Os quatro dados capturados na Tela 1 não pertencem a nenhum campo
+         do formulário real, então entram como um bloco à parte — só no PDF. */
+      const responsavelBlock = documento.createElement('section');
+      responsavelBlock.className = 'block';
+      const campoResp = (rotulo, valor) => {
+        const vazio = !valor;
+        return `<div class="field"><span class="label">${escaparHtml(rotulo)}</span>` +
+          `<div class="pdf-field-value${vazio ? ' is-empty' : ''}">${escaparHtml(vazio ? 'Nao informado' : valor)}</div></div>`;
+      };
+      responsavelBlock.innerHTML = `
+        <div class="block-head"><span class="eyebrow">Identificação</span><h2>Responsável pelo envio</h2></div>
+        <div class="row row-2">
+          ${campoResp('Empresa', d.responsavel?.empresa)}
+          ${campoResp('Nome completo', d.responsavel?.nome)}
+        </div>
+        <div class="row row-2">
+          ${campoResp('E-mail', d.responsavel?.email)}
+          ${campoResp('Telefone / celular', d.responsavel?.telefone)}
+        </div>`;
+
+      folhaClonada.querySelector('.masthead')?.after(meta, responsavelBlock);
     }
   });
 
@@ -1482,7 +1534,47 @@ async function gerarPdf(d, protocolo) {
     pdf.addImage(paginaCanvas.toDataURL('image/png'), 'PNG', 0, 0, larguraPaginaMm, alturaAtualMm, undefined, 'FAST');
   }
 
-  pdf.save(`proposta-garantia-${(d.processo.numero || protocolo).replace(/\D/g, '')}.pdf`);
+  /* Um único documento nos dois caminhos: o arquivo que a pessoa baixa é o
+     mesmo que o Worker encaminha ao Hub. Nada é gerado duas vezes. */
+  const nomeArquivo = `proposta-garantia-${(d.processo.numero || protocolo).replace(/\D/g, '')}.pdf`;
+  if (baixar) pdf.save(nomeArquivo);
+  return { blob: pdf.output('blob'), nome: nomeArquivo };
+}
+
+/* Envio da proposta — sempre pelo Worker deste mesmo domínio. O navegador
+   não conhece o endereço do Hub nem o token da autenticação servidor a
+   servidor: daqui só existe /api/garantia-judicial/submit. */
+async function enviarProposta(dados, protocolo, pdf) {
+  const corpo = new FormData();
+  corpo.append('payload', JSON.stringify({
+    protocolo,
+    geradoEm: new Date().toISOString(),
+    formulario: dados
+  }));
+  corpo.append('pdf', pdf.blob, pdf.nome);
+
+  let response;
+  try {
+    /* Sem Content-Type à mão: o navegador monta o multipart e o boundary. */
+    response = await fetch('/api/garantia-judicial/submit', {
+      method: 'POST',
+      body: corpo,
+      signal: AbortSignal.timeout(60000)
+    });
+  } catch (erro) {
+    throw new Error(erro && erro.name === 'TimeoutError'
+      ? 'O envio demorou mais do que o esperado. Tente novamente em instantes.'
+      : 'Não foi possível enviar a proposta. Verifique a conexão e tente novamente.');
+  }
+
+  if (!(response.headers.get('Content-Type') || '').includes('application/json')) {
+    throw new Error('O serviço de envio não está disponível neste endereço. Avise o responsável pelo formulário.');
+  }
+  let data;
+  try { data = await response.json(); }
+  catch { throw new Error('O serviço de envio devolveu uma resposta inesperada. Tente novamente.'); }
+  if (!response.ok) throw new Error(data.erro || 'Não foi possível enviar a proposta. Tente novamente.');
+  return data;
 }
 
 function ligarEventos() {
@@ -1554,6 +1646,12 @@ function ligarEventos() {
   });
 
   $('#btnEnviar').addEventListener('click', async () => {
+    const botao = $('#btnEnviar');
+    if (botao.disabled) return;          /* clique repetido não envia de novo */
+    const voltar = $('#btnVoltar');
+    const status = $('#envioStatus');
+    const rotulo = botao.textContent;
+
     const d = coletar();
     window.__proposta = d;
 
@@ -1561,18 +1659,45 @@ function ligarEventos() {
                       '-' + String(Math.floor(Math.random() * 9000) + 1000);
     protocoloAtual = protocolo;
 
+    /* O recibo só aparece depois que o Worker confirma o recebimento. Em
+       qualquer falha o formulário continua preenchido e o botão volta. */
+    const liberar = (mensagem) => {
+      setHint(status, mensagem || '', mensagem ? 'error' : undefined);
+      botao.textContent = rotulo;
+      botao.disabled = false;
+      voltar.disabled = false;
+    };
+
+    botao.disabled = true;
+    voltar.disabled = true;
+    botao.textContent = 'Enviando…';
+    setHint(status, 'Gerando o PDF e enviando a proposta…', 'load');
+
+    let pdf;
+    try {
+      /* o mesmo PDF que a pessoa baixa é o que segue para o Hub */
+      pdf = await gerarPdf(d, protocolo);
+    } catch (erro) {
+      console.error(erro);
+      liberar('Não foi possível gerar o PDF da proposta. Tente novamente; se continuar, avise o responsável pelo formulário.');
+      return;
+    }
+
+    try {
+      await enviarProposta(d, protocolo, pdf);
+    } catch (erro) {
+      console.error(erro);
+      liberar((erro && erro.message) || 'Não foi possível enviar a proposta. Tente novamente.');
+      return;
+    }
+
+    liberar('');
     $('#okProtocolo').textContent = protocolo;
     $('#okProcesso').textContent = d.processo.numero || '—';
     $('#okValor').textContent = money(d.garantia.importanciaSegurada);
 
     fecharModal('scrim');
     abrirModal('scrimOk');
-    try {
-      await gerarPdf(d, protocolo);
-    } catch (erro) {
-      console.error(erro);
-      alert('A proposta foi revisada, mas não foi possível gerar o PDF. Use o botão de download para tentar novamente.');
-    }
   });
 
   $('#btnFechar').addEventListener('click', () => fecharModal('scrimOk'));
@@ -1609,6 +1734,61 @@ function ligarEventos() {
   });
 }
 
+/* ── Tela 1 · identificação do responsável ───────────────────── */
+
+function campoValidoGate(el) {
+  if (el.id === 'respEmail') return EMAIL_RE.test(el.value.trim());
+  if (el.id === 'respTelefone') return digits(el.value).length >= 10;
+  return el.value.trim() !== '';
+}
+
+function ligarGate() {
+  const form = $('#gateForm');
+  const nota = $('#gateNote');
+
+  $('#respTelefone').addEventListener('input', (e) => {
+    e.target.value = maskTelefone(e.target.value);
+  });
+
+  form.addEventListener('input', (e) => {
+    if (!e.target.classList.contains('input')) return;
+    marcarPreenchido(e.target);
+    if (campoValidoGate(e.target)) e.target.classList.remove('is-invalid');
+  });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const campos = $$('[data-required]', form);
+    campos.forEach(el => el.classList.toggle('is-invalid', !campoValidoGate(el)));
+    const invalido = campos.find(el => !campoValidoGate(el));
+
+    if (invalido) {
+      invalido.focus();
+      nota.textContent = invalido.id === 'respEmail' ? 'Informe um e-mail válido.'
+        : invalido.id === 'respTelefone' ? 'Informe um telefone com DDD.'
+        : 'Preencha os campos para continuar.';
+      return;
+    }
+
+    responsavel = {
+      empresa: $('#respEmpresa').value.trim(),
+      nome: $('#respNome').value.trim(),
+      email: $('#respEmail').value.trim(),
+      telefone: $('#respTelefone').value.trim()
+    };
+
+    $('#gateSheet').hidden = true;
+    $('#formSheet').hidden = false;
+    /* o canvas da assinatura foi dimensionado com a folha ainda oculta
+       (offsetWidth/offsetHeight = 0 nesse momento); o listener de 'resize'
+       já ligado em iniciarAssinatura() corrige o tamanho agora que ela
+       aparece de verdade. */
+    window.dispatchEvent(new Event('resize'));
+    window.scrollTo({ top: 0 });
+  });
+}
+
 function definirDataHoje() {
   const hoje = new Date();
   const iso = hoje.toISOString().slice(0, 10);
@@ -1620,6 +1800,7 @@ function definirDataHoje() {
 /* ── partida ─────────────────────────────────────────────────── */
 
 function iniciar() {
+  ligarGate();
   montarUfs();
   montarTrts();
   montarRecursos();

@@ -1,5 +1,15 @@
 import { consultarProcesso, parseProcesso } from './services/datajud.mjs';
+import { encaminharProposta } from './services/hub.mjs';
 import { HttpError, json, readJson } from './utils/http.mjs';
+
+// Limite agregado por IP: pessoas na mesma rede compartilham o limite.
+// O escopo separa as contagens de consulta e de envio no mesmo limitador.
+async function dentroDoLimite(request, env, escopo) {
+  const { success } = await env.DATAJUD_RATE_LIMITER.limit({
+    key: escopo + ':' + (request.headers.get('CF-Connecting-IP') || 'local')
+  });
+  return success;
+}
 
 export default {
   async fetch(request, env) {
@@ -14,14 +24,21 @@ export default {
       if (url.pathname === '/api/status' && request.method === 'GET') {
         return json({ service: 'datajud', configured: Boolean(env.DATAJUD_APIKEY?.trim()) });
       }
+      if (url.pathname === '/api/garantia-judicial/submit') {
+        if (request.method !== 'POST') return json({ erro: 'Use POST.' }, 405, { Allow: 'POST' });
+        if (!env.DATAJUD_RATE_LIMITER) throw new HttpError(503, 'O serviço de envio ainda não foi configurado.');
+        if (!await dentroDoLimite(request, env, 'envio')) {
+          return json({ erro: 'Muitos envios. Aguarde um minuto e tente novamente.' }, 429, { 'Retry-After': '60' });
+        }
+        // O token do Hub existe apenas aqui; nada dele chega ao navegador.
+        return json(await encaminharProposta(request, env));
+      }
       if (url.pathname !== '/api/datajud') throw new HttpError(404, 'Rota não encontrada.');
       if (request.method !== 'POST') return json({ erro: 'Use POST.' }, 405, { Allow: 'POST' });
       if (!env.DATAJUD_RATE_LIMITER) throw new HttpError(503, 'O serviço de consulta ainda não foi configurado.');
-      // Limite agregado por IP: pessoas na mesma rede compartilham o limite.
-      const { success } = await env.DATAJUD_RATE_LIMITER.limit({
-        key: 'datajud:' + (request.headers.get('CF-Connecting-IP') || 'local')
-      });
-      if (!success) return json({ erro: 'Muitas consultas. Aguarde um minuto e tente novamente.' }, 429, { 'Retry-After': '60' });
+      if (!await dentroDoLimite(request, env, 'datajud')) {
+        return json({ erro: 'Muitas consultas. Aguarde um minuto e tente novamente.' }, 429, { 'Retry-After': '60' });
+      }
       const processo = parseProcesso(await readJson(request));
       return json(await consultarProcesso(processo, env.DATAJUD_APIKEY));
     } catch (error) {

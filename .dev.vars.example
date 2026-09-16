@@ -1,3 +1,12 @@
 # Copie para .dev.vars e informe apenas o valor da chave, sem o prefixo APIKey.
 # Chave vigente: https://datajud-wiki.cnj.jus.br/api-publica/acesso/
 DATAJUD_APIKEY=
+
+# Endpoint server-side do Hub que recebe a proposta (dados + PDF). URL completa,
+# https, sem barra no fim. O Hub roda em Lovable, que exige o prefixo /api/public/:
+# https://<hub>/api/public/garantia-judicial-submit
+# Use o endereço de homologação no desenvolvimento local; nunca commite valores reais.
+HUB_SUBMIT_URL=
+
+# Token da autenticação servidor a servidor com o Hub. Só o valor, sem o prefixo Bearer.
+HUB_WEBHOOK_SECRET=

@@ -92,6 +92,20 @@ body {
 
 @media (min-width: 760px) { .sheet { margin: 40px auto 64px; padding: 0 20px; } }
 
+/* ── tela 1 · identificação do responsável ──────────────────── */
+/* folha estreita e centralizada: sem índice lateral, então a largura
+   cheia de --sheet-w deixaria quatro campos perdidos na tela */
+.sheet-gate { max-width: 620px; }
+
+.body-gate {
+  background: var(--paper);
+  border-radius: 0 0 var(--r) var(--r);
+  box-shadow: var(--shadow);
+  overflow: clip;
+}
+.body-gate .block { border-bottom: 0; }
+.body-gate .actions { border-radius: 0 0 var(--r) var(--r); }
+
 /* ── masthead ────────────────────────────────────────────────── */
 
 .masthead {
