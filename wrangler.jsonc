@@ -4,6 +4,15 @@
   "main": "src/worker.mjs",
   "compatibility_date": "2026-09-09",
   "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "formulario.lavoroseguros.com.br",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "HUB_SUBMIT_URL": "https://hub.lavoroseguros.com.br/api/public/garantia-judicial-submit"
+  },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { jsPDF } from 'jspdf';
 
 /* Mesma técnica de frontend.test.mjs: js/app.js roda em node:vm com um
    document falso, para exercitar o envio sem navegador. */
@@ -11,21 +12,20 @@ function montar(fetch) {
   const salvos = [];
   const blobDoGerador = new Blob(['%PDF-1.4 gerado pelo formulario'], { type: 'application/pdf' });
 
-  const folha = { querySelector: () => null, querySelectorAll: () => [] };
-  const canvasFalso = { width: 800, height: 400 };
-  const contexto2d = { drawImage() {} };
-
   const documento = {
-    querySelector: seletor => (seletor === '#formSheet' ? folha : null),
-    createElement: () => ({ width: 0, height: 0, getContext: () => contexto2d, toDataURL: () => 'data:image/png;base64,x' }),
+    querySelector: () => null,
     addEventListener() {}
   };
 
   const janela = {
-    html2canvas: async () => canvasFalso,
     jspdf: {
       jsPDF: function () {
-        this.addPage = () => {};
+        let paginas = 1;
+        for (const metodo of ['setProperties', 'setFillColor', 'rect', 'setTextColor', 'setFont', 'setFontSize',
+          'text', 'setDrawColor', 'line', 'roundedRect', 'addImage', 'setPage']) this[metodo] = () => {};
+        this.splitTextToSize = texto => [String(texto)];
+        this.addPage = () => { paginas += 1; };
+        this.getNumberOfPages = () => paginas;
         this.addImage = () => {};
         this.save = nome => salvos.push(nome);
         this.output = tipo => (tipo === 'blob' ? blobDoGerador : null);
@@ -41,9 +41,26 @@ function montar(fetch) {
   return { context, salvos, blobDoGerador };
 }
 
-const dados = () => ({ processo: { numero: '0000001-23.2025.8.26.0001' } });
+const dados = () => ({
+  responsavel: { empresa: 'Empresa Teste', nome: 'Pessoa Teste', email: 'teste@example.com', telefone: '(11) 99999-9999' },
+  natureza: 'civel',
+  naturezaRotulo: 'Cível',
+  autor: { tipo: 'Pessoa jurídica', documento: '00.000.000/0001-00', nome: 'Autor Teste', endereco: 'Endereço do autor' },
+  menorIdade: 'não',
+  representante: null,
+  reu: { documento: '11.111.111/0001-11', nome: 'Réu Teste', endereco: 'Endereço do réu' },
+  processo: { numero: '0000001-23.2025.8.26.0001', ramo: 'Justiça Estadual', tribunal: 'TJSP', juizo: '1ª Vara', ano: '2025', numeroAdministrativo: '', tribunalRegional: '' },
+  garantia: { valorCausa: 100000, add30: true, importanciaSegurada: 130000, autoInfracao: '', linhaDefesa: 'Defesa teste', historico: 'Histórico teste' },
+  indice: 'IPCA',
+  objetivo: 'Garantir o processo',
+  vigencia: { inicio: '2026-09-17', anos: 3, fim: '2029-09-17' },
+  entrega: { prazo: '2026-09-20', diasRestantes: 3 },
+  exito: 'Possível',
+  advogado: { nome: 'Advogado Teste', oab: '123456', uf: 'SP' },
+  assinatura: 'data:image/png;base64,eA=='
+});
 
-test('gerarPdf continua baixando o arquivo e devolve o mesmo documento em Blob', async () => {
+test('gerarPdf baixa somente quando solicitado e devolve o documento em Blob', async () => {
   const ui = montar(async () => { throw new Error('não deve enviar aqui'); });
   ui.context.dados = dados();
   const resultado = await vm.runInContext("gerarPdf(dados, 'LV-260915-1234')", ui.context);
@@ -57,7 +74,35 @@ test('gerarPdf continua baixando o arquivo e devolve o mesmo documento em Blob',
   assert.equal(semBaixar.blob, ui.blobDoGerador);
 });
 
-test('envia ao Worker o mesmo PDF gerado, com os dados do formulário e sem credenciais', async () => {
+test('gera um PDF A4 real e válido com o layout corporativo', async () => {
+  const logoBase64 = 'data:image/png;base64,' + readFileSync(
+    new URL('../assets/Logo_Lavoro (Branca).png', import.meta.url)
+  ).toString('base64');
+  const documento = {
+    querySelector: seletor => seletor.includes('masthead-logo') ? logoBase64 : null,
+    addEventListener() {}
+  };
+  const context = vm.createContext({
+    document: documento,
+    window: { jspdf: { jsPDF } },
+    location: { protocol: 'https:' },
+    Blob,
+    console: { error() {}, warn() {} }
+  });
+  vm.runInContext(source, context);
+  context.dados = { ...dados(), assinatura: logoBase64 };
+
+  const resultado = await vm.runInContext(
+    "gerarPdf(dados, 'LV-260917-4321', { baixar: false })",
+    context
+  );
+  const bytes = Buffer.from(await resultado.blob.arrayBuffer());
+  assert.equal(bytes.subarray(0, 5).toString(), '%PDF-');
+  assert.ok(bytes.length > 20_000);
+  assert.equal(resultado.nome, 'proposta-garantia-00000012320258260001.pdf');
+});
+
+test('envia ao Worker o mesmo PDF sem baixar automaticamente e sem expor credenciais', async () => {
   let chamada = null;
   const ui = montar(async (url, options) => {
     chamada = { url, options };
@@ -66,11 +111,12 @@ test('envia ao Worker o mesmo PDF gerado, com os dados do formulário e sem cred
   ui.context.dados = dados();
 
   const enviado = await vm.runInContext(`(async () => {
-    const pdf = await gerarPdf(dados, 'LV-260915-1234');
+    const pdf = await gerarPdf(dados, 'LV-260915-1234', { baixar: false });
     return enviarProposta(dados, 'LV-260915-1234', pdf);
   })()`, ui.context);
 
   assert.deepEqual(enviado, { recebido: true, referencia: 'hub-123' });
+  assert.deepEqual(ui.salvos, []);
   assert.equal(chamada.url, '/api/garantia-judicial/submit');
   assert.equal(chamada.options.method, 'POST');
   // Nenhuma credencial sai do navegador e o Content-Type fica com o runtime.

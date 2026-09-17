@@ -9,15 +9,14 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "dev": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy",
+    "deploy": "npm run build && wrangler deploy --keep-vars",
     "check": "node --check js/app.js && node --test tests/*.test.mjs",
-    "deploy:check": "npm run build && wrangler deploy --dry-run"
+    "deploy:check": "npm run build && wrangler deploy --keep-vars --dry-run"
   },
   "devDependencies": {
     "wrangler": "4.130.0"
   },
   "dependencies": {
-    "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "signature_pad": "^5.1.4"
   }

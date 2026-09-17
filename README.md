@@ -21,11 +21,10 @@ O time abre um link HTTPS; não precisa instalar Node nem iniciar um proxy local
 4. Depois do primeiro deploy, abra o Worker em **Settings → Variables & Secrets** e adicione um **Secret de runtime** chamado `DATAJUD_APIKEY`.
    Copie apenas o valor da chave vigente em <https://datajud-wiki.cnj.jus.br/api-publica/acesso/>, sem `Authorization:` nem `APIKey `.
    Salve/aplique a alteração e publique a versão atualizada, se solicitado pelo painel. Uma variável apenas de build não atende a essa configuração.
-5. No mesmo lugar, configure o envio da proposta ao Hub:
+5. A URL não secreta do Hub já está declarada em `wrangler.jsonc`. No painel, configure apenas o segredo de autenticação:
 
    | Nome | Tipo | Conteúdo |
    | --- | --- | --- |
-   | `HUB_SUBMIT_URL` | variável de runtime | URL HTTPS completa do endpoint server-side do Hub que recebe a proposta |
    | `HUB_WEBHOOK_SECRET` | **Secret** de runtime | token da autenticação servidor a servidor, só o valor, sem `Bearer ` |
 
    O Hub roda em Lovable, que exige o prefixo `/api/public/` nas rotas abertas. O endereço a
@@ -33,14 +32,16 @@ O time abre um link HTTPS; não precisa instalar Node nem iniciar um proxy local
    antes de `submit`. Informe a URL exata, sem barra no fim: o Worker não segue redirecionamento
    (para não repassar o token a outro endereço) e responde `HUB_REDIRECT` se o Hub devolver 3xx.
 
-   Esse endereço não aparece em lugar nenhum do código: o Worker só lê `HUB_SUBMIT_URL`. Mudar o
-   caminho no Hub é alterar essa variável no painel, sem novo deploy do formulário.
+   O endereço fica em `HUB_SUBMIT_URL`, como variável não secreta no `wrangler.jsonc`. Mudar o
+   caminho no Hub exige atualizar a configuração e realizar um novo deploy.
 
    Sem as duas, o envio responde com `HUB_CONFIG` e nada é encaminhado. O token existe apenas no Worker: não vai para o HTML, para o JavaScript nem para log algum.
 
 6. Abra a URL HTTPS indicada pelo Cloudflare. Em `/diagnostico.html`, verifique se o Worker encontrou a configuração.
 7. No formulário, consulte um processo público conhecido e confira os dados retornados. O diagnóstico verifica a presença da configuração do CNJ, não a autenticação no CNJ nem o envio ao Hub.
-8. Compartilhe o link do formulário com o time. Alterações enviadas à branch conectada podem gerar novos deploys automáticos.
+8. Compartilhe o link do formulário com o time. Se o Worker estiver conectado ao repositório em **Builds → Settings**, todo push para a branch de produção `main` inicia build e deploy automáticos.
+
+`npx wrangler login` autentica apenas a CLI nesta máquina; ele não cria a conexão entre GitHub e Cloudflare. Se o Worker do T.I. não tiver uma integração Git configurada, o push não publica nada. Nesse caso, publique manualmente com `npm run deploy` ou peça ao T.I. para conectar o repositório e a branch `main` no painel.
 
 O formulário abre sem a chave, mas a consulta retorna uma mensagem de configuração pendente até o Secret ser definido.
 Não é necessário editar `js/app.js` com a URL do Worker nem com o endereço do Hub: as chamadas usam `/api/datajud` e `/api/garantia-judicial/submit` no mesmo domínio.
@@ -64,7 +65,7 @@ npm run dev
 ```
 
 Abra o endereço informado pelo Wrangler. `deploy:check` valida o empacotamento sem publicar.
-Para publicação manual autenticada na sua conta: `npm run deploy`.
+Para publicação manual autenticada na sua conta: `npm run deploy`. Antes de publicar, use `npm run deploy:check` para validar o pacote sem alterar a produção.
 
 ## Organização e fluxo
 
@@ -89,7 +90,7 @@ O proxy não grava o formulário ou os números dos processos em banco nem em lo
 
 `POST /api/garantia-judicial/submit` recebe `multipart/form-data` com dois campos: `payload`
 (JSON com `protocolo`, `geradoEm` e `formulario`, o mesmo objeto montado por `coletar()`) e
-`pdf` (o arquivo que o navegador acabou de gerar e baixar). `payload` vai como campo de
+`pdf` (o arquivo gerado em memória, sem download automático). O mesmo documento fica disponível no botão de download após a confirmação. `payload` vai como campo de
 texto puro — anexado como arquivo, com nome, o envio é recusado com 400. O Worker confere formato, tamanho
 e a assinatura `%PDF-` do arquivo, remonta o multipart e encaminha a `HUB_SUBMIT_URL` com
 `Authorization: Bearer <HUB_WEBHOOK_SECRET>`. Qualquer resposta 2xx do Hub confirma o

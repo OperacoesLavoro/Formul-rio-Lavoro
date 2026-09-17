@@ -6,6 +6,7 @@
 
 let assinatura = null;
 let protocoloAtual = '';
+let pdfAtual = null;
 /* Preenchido pela Tela 1 (gate de identificação), antes de liberar o
    formulário. Segue dentro de coletar().responsavel — ver bloco 13. */
 let responsavel = null;
@@ -184,7 +185,8 @@ function mascararDataBr(campo) {
 
 function isoDoCampoData(id) {
   const campo = $('#' + id);
-  return campo?.dataset.iso || isoDaDataBr(campo?.value);
+  const valor = campo?.value || '';
+  return campo?.dataset?.iso || (/^\d{4}-\d{2}-\d{2}$/.test(valor) ? valor : isoDaDataBr(valor));
 }
 
 /* ───────────────────────────────────────────────────────────────
@@ -1351,18 +1353,42 @@ function iniciarAssinatura() {
     $('#signatureStatus').textContent = 'Não foi possível carregar a área de assinatura.';
     return;
   }
+  /* O bloqueio precisa estar no elemento que recebe o toque. Isso impede que
+     Safari/Chrome interpretem a assinatura como rolagem da página. */
+  canvas.style.touchAction = 'none';
+  canvas.style.overscrollBehavior = 'contain';
+  canvas.style.webkitUserSelect = 'none';
   assinatura = new SignaturePad(canvas, { minWidth: 0.8, maxWidth: 2.4, penColor: '#0e2c40' });
+
+  let larguraAnterior = 0;
+  let alturaAnterior = 0;
   const redimensionar = () => {
+    const largura = canvas.offsetWidth;
+    const altura = canvas.offsetHeight;
+    /* A área nasce dentro da segunda tela, inicialmente oculta. Não transforme
+       o canvas em 0x0: aguarde até o navegador concluir o layout visível. */
+    if (!largura || !altura || (largura === larguraAnterior && altura === alturaAnterior)) return;
     const dados = assinatura.isEmpty() ? null : assinatura.toData();
     const ratio = Math.max(window.devicePixelRatio || 1, 1);
-    canvas.width = Math.round(canvas.offsetWidth * ratio);
-    canvas.height = Math.round(canvas.offsetHeight * ratio);
+    canvas.width = Math.round(largura * ratio);
+    canvas.height = Math.round(altura * ratio);
     canvas.getContext('2d').scale(ratio, ratio);
+    larguraAnterior = largura;
+    alturaAnterior = altura;
     assinatura.clear();
     if (dados) assinatura.fromData(dados);
   };
   redimensionar();
   window.addEventListener('resize', redimensionar);
+  if (typeof ResizeObserver === 'function') new ResizeObserver(redimensionar).observe(campo);
+
+  /* Compatibilidade adicional para navegadores móveis antigos que ainda
+     promovem eventos touch mesmo quando Pointer Events estão disponíveis. */
+  const bloquearRolagem = evento => {
+    if (evento.cancelable) evento.preventDefault();
+  };
+  canvas.addEventListener('touchstart', bloquearRolagem, { passive: false });
+  canvas.addEventListener('touchmove', bloquearRolagem, { passive: false });
   assinatura.addEventListener('endStroke', () => {
     campo.classList.remove('is-invalid');
     $('#signaturePlaceholder').hidden = true;
@@ -1377,168 +1403,206 @@ function iniciarAssinatura() {
   });
 }
 
-function gerarPdfTextoLegado(d, protocolo) {
-  if (!window.jspdf?.jsPDF) throw new Error('Gerador de PDF indisponível.');
-  const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
-  const margem = 18;
-  let y = 20;
-  const novaPagina = (altura = 12) => { if (y + altura > 278) { pdf.addPage(); y = 20; } };
-  const titulo = texto => {
-    novaPagina(14); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.setTextColor(14, 44, 64);
-    pdf.text(texto.toUpperCase(), margem, y); y += 7;
-  };
-  const linha = (rotulo, valor) => {
-    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(43, 58, 68);
-    const linhas = pdf.splitTextToSize(`${rotulo}: ${valor || 'não informado'}`, 174);
-    novaPagina(linhas.length * 4.5 + 2); pdf.text(linhas, margem, y); y += linhas.length * 4.5 + 2;
-  };
-  pdf.setFillColor(14, 44, 64); pdf.rect(0, 0, 210, 32, 'F');
-  pdf.setTextColor(255, 255, 255); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(17); pdf.text('LAVORO SEGUROS', margem, 14);
-  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.text('Formulário de Seguro Garantia Judicial', margem, 22); y = 42;
-  linha('Protocolo', protocolo); linha('Gerado em', new Date().toLocaleString('pt-BR'));
-  titulo('Partes');
-  linha('Autor', d.autor.nome); linha(d.autor.tipo === 'Pessoa física' ? 'CPF' : 'CNPJ', d.autor.documento); linha('Endereço do autor', d.autor.endereco);
-  if (d.menorIdade !== null) linha('Envolve menor de idade', d.menorIdade);
-  if (d.representante) { linha('Representante legal', d.representante.nome); linha('CPF do representante', d.representante.cpf); }
-  linha('Réu / tomador', d.reu.nome); linha('CNPJ', d.reu.documento); linha('Endereço do réu', d.reu.endereco);
-  titulo('Processo');
-  linha('Número', d.processo.numero); linha('Tribunal', d.processo.tribunal); linha('Juízo / vara', d.processo.juizo); linha('Natureza', d.naturezaRotulo);
-  linha('Processo administrativo', d.processo.numeroAdministrativo); linha('Tribunal Regional', d.processo.tribunalRegional);
-  titulo('Garantia');
-  if (d.natureza === 'recursal') { linha('Tipo de recurso', d.garantia.tipoRecurso); linha('Enquadramento', d.garantia.enquadramento); }
-  else { linha('Valor da causa', money(d.garantia.valorCausa)); linha('Auto de infração', d.garantia.autoInfracao); linha('Linha de defesa', d.garantia.linhaDefesa); linha('Histórico', d.garantia.historico); }
-  linha('Acréscimo de 30%', d.garantia.add30 ? 'sim' : 'não'); linha('Importância segurada', money(d.garantia.importanciaSegurada));
-  titulo('Condições e responsável');
-  linha('Índice', d.indice); linha('Objetivo', d.objetivo); linha('Vigência', `${d.vigencia.inicio} a ${d.vigencia.fim}`);
-  linha('Prazo para entrega da apólice', d.entrega.prazo ? new Date(d.entrega.prazo + 'T00:00:00').toLocaleDateString('pt-BR') : '');
-  linha('Probabilidade de êxito', d.exito);
-  linha('Advogado', d.advogado.nome); linha('OAB', `${d.advogado.oab} / ${d.advogado.uf}`);
-  titulo('Assinatura do responsável'); novaPagina(36);
-  pdf.addImage(d.assinatura, 'PNG', margem, y, 65, 25, undefined, 'FAST'); y += 29;
-  pdf.setDrawColor(130, 146, 157); pdf.line(margem, y, margem + 75, y); pdf.setFontSize(8); pdf.text('Assinatura fornecida eletronicamente', margem, y + 4);
-  pdf.save(`proposta-garantia-${(d.processo.numero || protocolo).replace(/\D/g, '')}.pdf`);
+function dataPdf(valor) {
+  const partes = String(valor || '').split('-');
+  return partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : (valor || '');
 }
 
+async function logoParaPdf() {
+  const logo = document.querySelector('#formSheet .masthead-logo') || document.querySelector('.masthead-logo');
+  if (!logo) return null;
+  if (!logo.complete && typeof logo.decode === 'function') {
+    try { await logo.decode(); } catch { return null; }
+  }
+  return logo.naturalWidth === 0 ? null : logo;
+}
+
+/* Documento vetorial e independente do tamanho da tela. O Hub recebe
+   exatamente o mesmo Blob disponibilizado posteriormente para download. */
 async function gerarPdf(d, protocolo, { baixar = true } = {}) {
-  if (!window.jspdf?.jsPDF) throw new Error('Gerador de PDF indisponÃ­vel.');
-  if (typeof window.html2canvas !== 'function') throw new Error('Renderizador visual do PDF indisponÃ­vel.');
-
-  /* #formSheet, não '.sheet': a Tela 1 (gate de identificação) também tem
-     essa classe, e fica antes dela no DOM. */
-  const folha = document.querySelector('#formSheet');
-  if (!folha) throw new Error('Folha do formulÃ¡rio nÃ£o encontrada.');
-
-  /* A captura usa uma largura de folha conhecida. Assim o resultado nÃ£o muda
-     entre celular, notebook e monitor ultrawide, mas continua usando as
-     mesmas regras responsivas do HTML. */
-  const larguraFolha = 794;
-  if (document.fonts?.ready) await document.fonts.ready;
-  const canvas = await window.html2canvas(folha, {
-    backgroundColor: '#ffffff',
-    scale: 2,
-    useCORS: true,
-    logging: false,
-    windowWidth: larguraFolha,
-    onclone: documento => {
-      const folhaClonada = documento.querySelector('#formSheet');
-      if (!folhaClonada) return;
-
-      folhaClonada.classList.add('pdf-export');
-      folhaClonada.querySelector('.index')?.remove();
-      folhaClonada.querySelector('.actions')?.remove();
-      folhaClonada.querySelector('.colophon')?.remove();
-
-      /* cloneNode nÃ£o copia propriedades vivas de inputs, selects e canvas. */
-      const controles = Array.from(folha.querySelectorAll('input, textarea, select'));
-      const controlesClonados = Array.from(folhaClonada.querySelectorAll('input, textarea, select'));
-      controles.forEach((original, indice) => {
-        /* A ordem dos controles é preservada no clone. Usá-la evita depender
-           de IDs e garante que rádio, checkbox e campos repetidos correspondam
-           exatamente ao formulário preenchido. */
-        const copia = controlesClonados[indice];
-        if (!copia || original.type === 'hidden') return;
-
-        if (original.tagName === 'INPUT' && ['radio', 'checkbox'].includes(original.type)) {
-          copia.checked = original.checked;
-          return;
-        }
-
-        const valor = original.tagName === 'SELECT'
-          ? Array.from(original.selectedOptions).map(option => option.textContent.trim()).join(', ')
-          : original.value.trim();
-        const saida = documento.createElement('div');
-        saida.className = 'pdf-field-value' + (valor ? '' : ' is-empty');
-        saida.textContent = valor || 'NÃ£o informado';
-        if (!valor) saida.textContent = 'Nao informado';
-        copia.replaceWith(saida);
-      });
-
-      const assinaturaOriginal = folha.querySelector('#signatureCanvas');
-      const assinaturaClonada = folhaClonada.querySelector('#signatureCanvas');
-      if (assinaturaOriginal && assinaturaClonada && assinaturaOriginal.width > 0 && assinaturaOriginal.height > 0) {
-        const imagem = documento.createElement('img');
-        imagem.src = assinaturaOriginal.toDataURL('image/png');
-        imagem.alt = 'Assinatura desenhada pelo responsÃ¡vel';
-        imagem.style.cssText = 'display:block;width:100%;height:100%;object-fit:contain;';
-        assinaturaClonada.replaceWith(imagem);
-      }
-
-      const meta = documento.createElement('div');
-      meta.className = 'pdf-export-meta';
-      const protocoloEl = documento.createElement('strong');
-      protocoloEl.textContent = `Protocolo ${protocolo}`;
-      const geradoEl = documento.createElement('span');
-      geradoEl.textContent = `Gerado em ${new Date().toLocaleString('pt-BR')}`;
-      meta.append(protocoloEl, geradoEl);
-
-      /* Os quatro dados capturados na Tela 1 não pertencem a nenhum campo
-         do formulário real, então entram como um bloco à parte — só no PDF. */
-      const responsavelBlock = documento.createElement('section');
-      responsavelBlock.className = 'block';
-      const campoResp = (rotulo, valor) => {
-        const vazio = !valor;
-        return `<div class="field"><span class="label">${escaparHtml(rotulo)}</span>` +
-          `<div class="pdf-field-value${vazio ? ' is-empty' : ''}">${escaparHtml(vazio ? 'Nao informado' : valor)}</div></div>`;
-      };
-      responsavelBlock.innerHTML = `
-        <div class="block-head"><span class="eyebrow">Identificação</span><h2>Responsável pelo envio</h2></div>
-        <div class="row row-2">
-          ${campoResp('Empresa', d.responsavel?.empresa)}
-          ${campoResp('Nome completo', d.responsavel?.nome)}
-        </div>
-        <div class="row row-2">
-          ${campoResp('E-mail', d.responsavel?.email)}
-          ${campoResp('Telefone / celular', d.responsavel?.telefone)}
-        </div>`;
-
-      folhaClonada.querySelector('.masthead')?.after(meta, responsavelBlock);
-    }
-  });
+  if (!window.jspdf?.jsPDF) throw new Error('Gerador de PDF indisponível.');
 
   const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', compress: true });
-  const larguraPaginaMm = 210;
-  const alturaPaginaMm = 297;
-  const alturaFatiaPx = Math.floor(canvas.width * alturaPaginaMm / larguraPaginaMm);
+  const logo = await logoParaPdf();
+  const margem = 16;
+  const larguraUtil = 178;
+  const limiteInferior = 280;
+  const azul = [20, 64, 92];
+  const ciano = [0, 183, 240];
+  const grafite = [30, 41, 59];
+  const cinza = [92, 113, 131];
+  const gelo = [246, 249, 251];
+  const borda = [218, 229, 236];
+  let y = 0;
 
-  for (let topo = 0, pagina = 0; topo < canvas.height; topo += alturaFatiaPx, pagina += 1) {
-    if (pagina > 0) pdf.addPage();
-    const alturaAtualPx = Math.min(alturaFatiaPx, canvas.height - topo);
-    const paginaCanvas = document.createElement('canvas');
-    paginaCanvas.width = canvas.width;
-    paginaCanvas.height = alturaAtualPx;
-    paginaCanvas.getContext('2d').drawImage(
-      canvas, 0, topo, canvas.width, alturaAtualPx,
-      0, 0, canvas.width, alturaAtualPx
-    );
-    const alturaAtualMm = alturaAtualPx * larguraPaginaMm / canvas.width;
-    pdf.addImage(paginaCanvas.toDataURL('image/png'), 'PNG', 0, 0, larguraPaginaMm, alturaAtualMm, undefined, 'FAST');
+  pdf.setProperties?.({
+    title: `Seguro Garantia Judicial — ${protocolo}`,
+    subject: 'Solicitação de cotação de seguro garantia judicial',
+    author: 'Lavoro Seguros',
+    creator: 'Formulário corporativo Lavoro Seguros'
+  });
+
+  const cabecalho = primeira => {
+    const altura = primeira ? 32 : 25;
+    pdf.setFillColor(...azul);
+    pdf.rect(0, 0, 210, altura, 'F');
+    if (logo) pdf.addImage(logo, 'PNG', margem, primeira ? 7 : 5.5, primeira ? 40 : 31, primeira ? 13.4 : 10.4, undefined, 'FAST');
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(primeira ? 13 : 10);
+    pdf.text('SEGURO GARANTIA JUDICIAL', 194, primeira ? 14 : 11, { align: 'right' });
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(7.5);
+    pdf.text(primeira ? 'SOLICITAÇÃO PARA ANÁLISE E COTAÇÃO' : `PROTOCOLO ${protocolo}`, 194, primeira ? 21 : 17, { align: 'right' });
+    y = altura + 8;
+  };
+
+  const novaPagina = () => {
+    pdf.addPage();
+    cabecalho(false);
+  };
+
+  const garantirEspaco = altura => {
+    if (y + altura > limiteInferior) novaPagina();
+  };
+
+  const textoSeguro = valor => {
+    if (valor === null || valor === undefined || valor === '') return 'Não informado';
+    return String(valor);
+  };
+
+  const prepararCampo = (rotulo, valor, largura) => {
+    const texto = textoSeguro(valor);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    const linhas = pdf.splitTextToSize(texto, largura - 7);
+    return { rotulo, linhas, vazio: texto === 'Não informado' };
+  };
+
+  const linhaCampos = campos => {
+    const gap = 4;
+    const largura = campos.length === 1 ? larguraUtil : (larguraUtil - gap) / 2;
+    const preparados = campos.map(campo => prepararCampo(campo[0], campo[1], largura));
+    const altura = Math.max(16, ...preparados.map(campo => 10 + campo.linhas.length * 4.1));
+    garantirEspaco(altura + 4);
+
+    preparados.forEach((campo, indice) => {
+      const x = margem + indice * (largura + gap);
+      pdf.setFillColor(...gelo);
+      pdf.setDrawColor(...borda);
+      pdf.roundedRect(x, y, largura, altura, 1.3, 1.3, 'FD');
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(6.8);
+      pdf.setTextColor(...cinza);
+      pdf.text(campo.rotulo.toUpperCase(), x + 3.5, y + 5);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(...(campo.vazio ? cinza : grafite));
+      pdf.text(campo.linhas, x + 3.5, y + 10.2);
+    });
+    y += altura + 4;
+  };
+
+  const secao = titulo => {
+    /* Mantém o título junto de pelo menos uma linha de conteúdo. */
+    garantirEspaco(34);
+    y += 3;
+    pdf.setFillColor(...ciano);
+    pdf.rect(margem, y, 1.4, 7, 'F');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(10.5);
+    pdf.setTextColor(...azul);
+    pdf.text(titulo, margem + 4.5, y + 5.2);
+    pdf.setDrawColor(...borda);
+    pdf.line(margem, y + 8.5, margem + larguraUtil, y + 8.5);
+    y += 13;
+  };
+
+  cabecalho(true);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(8);
+  pdf.setTextColor(...azul);
+  pdf.text(`PROTOCOLO  ${protocolo}`, margem, y);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(...cinza);
+  pdf.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, margem + larguraUtil, y, { align: 'right' });
+  y += 7;
+
+  secao('Resumo da solicitação');
+  linhaCampos([['Número do processo', d.processo.numero], ['Natureza', d.naturezaRotulo]]);
+  linhaCampos([['Importância segurada', money(d.garantia.importanciaSegurada)], ['Entrega da apólice', dataPdf(d.entrega.prazo)]]);
+
+  secao('Responsável pelo envio');
+  linhaCampos([['Empresa', d.responsavel?.empresa], ['Nome completo', d.responsavel?.nome]]);
+  linhaCampos([['E-mail', d.responsavel?.email], ['Telefone / celular', d.responsavel?.telefone]]);
+
+  secao('Partes do processo');
+  linhaCampos([['Autor / reclamante', d.autor.nome], ['Tipo e documento', `${d.autor.tipo} — ${textoSeguro(d.autor.documento)}`]]);
+  linhaCampos([['Endereço do autor / reclamante', d.autor.endereco]]);
+  if (d.menorIdade !== null) linhaCampos([['Envolve menor de idade', d.menorIdade], ['Representante legal', d.representante?.nome]]);
+  if (d.representante) linhaCampos([['CPF do representante', d.representante.cpf]]);
+  linhaCampos([['Réu / tomador', d.reu.nome], ['CNPJ', d.reu.documento]]);
+  linhaCampos([['Endereço do réu / tomador', d.reu.endereco]]);
+
+  secao('Dados do processo');
+  linhaCampos([['Número CNJ', d.processo.numero], ['Ramo da Justiça', d.processo.ramo]]);
+  linhaCampos([['Tribunal', d.processo.tribunal], ['Juízo / vara', d.processo.juizo]]);
+  linhaCampos([['Ano', d.processo.ano], ['Tribunal Regional', d.processo.tribunalRegional]]);
+  if (d.processo.numeroAdministrativo) linhaCampos([['Processo administrativo', d.processo.numeroAdministrativo]]);
+
+  secao('Garantia solicitada');
+  if (d.natureza === 'recursal') {
+    linhaCampos([['Tipo de recurso', d.garantia.tipoRecurso], ['Enquadramento', d.garantia.enquadramento]]);
+    linhaCampos([['Depósito de tabela', money(d.garantia.depositoTabela)], ['Dispensa sumular', d.garantia.dispensaSumular ? 'Sim' : 'Não']]);
+    linhaCampos([['Ajuste manual', d.garantia.ajusteManual ? money(d.garantia.ajusteManual) : 'Não aplicado'], ['Acréscimo de 30%', d.garantia.add30 ? 'Sim' : 'Não']]);
+    linhaCampos([['Referência normativa', `${d.garantia.fonte?.ato || ''} — vigência ${d.garantia.fonte?.vigencia || ''}`]]);
+  } else {
+    linhaCampos([['Valor da causa', money(d.garantia.valorCausa)], ['Acréscimo de 30%', d.garantia.add30 ? 'Sim' : 'Não']]);
+    linhaCampos([['Auto de infração', d.garantia.autoInfracao]]);
+    linhaCampos([['Linha de defesa', d.garantia.linhaDefesa]]);
+    linhaCampos([['Histórico do processo', d.garantia.historico]]);
+  }
+  linhaCampos([['Importância segurada', money(d.garantia.importanciaSegurada)]]);
+
+  secao('Condições da garantia');
+  linhaCampos([['Índice de atualização', d.indice], ['Probabilidade de êxito', d.exito]]);
+  linhaCampos([['Objetivo da garantia', d.objetivo]]);
+  linhaCampos([['Início da vigência', dataPdf(d.vigencia.inicio)], ['Fim da vigência', dataPdf(d.vigencia.fim)]]);
+  linhaCampos([['Período', d.vigencia.anos ? `${d.vigencia.anos} ano(s)` : ''], ['Prazo para entrega', dataPdf(d.entrega.prazo)]]);
+
+  secao('Advogado responsável');
+  linhaCampos([['Nome', d.advogado.nome], ['OAB', `${d.advogado.oab || 'Não informada'} / ${d.advogado.uf || 'UF'}`]]);
+
+  secao('Assinatura do responsável');
+  garantirEspaco(38);
+  pdf.setFillColor(255, 255, 255);
+  pdf.setDrawColor(...borda);
+  pdf.roundedRect(margem, y, larguraUtil, 31, 1.3, 1.3, 'FD');
+  if (d.assinatura) pdf.addImage(d.assinatura, 'PNG', margem + 4, y + 2, 67, 23, undefined, 'FAST');
+  pdf.setDrawColor(...cinza);
+  pdf.line(margem + 4, y + 25, margem + 79, y + 25);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(7.5);
+  pdf.setTextColor(...cinza);
+  pdf.text('Assinatura fornecida eletronicamente no formulário', margem + 4, y + 29);
+
+  const paginas = pdf.getNumberOfPages();
+  for (let pagina = 1; pagina <= paginas; pagina += 1) {
+    pdf.setPage(pagina);
+    pdf.setDrawColor(...borda);
+    pdf.line(margem, 287, margem + larguraUtil, 287);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(7);
+    pdf.setTextColor(...cinza);
+    pdf.text(`Lavoro Seguros  •  ${protocolo}`, margem, 292);
+    pdf.text(`Página ${pagina} de ${paginas}`, margem + larguraUtil, 292, { align: 'right' });
   }
 
-  /* Um único documento nos dois caminhos: o arquivo que a pessoa baixa é o
-     mesmo que o Worker encaminha ao Hub. Nada é gerado duas vezes. */
-  const nomeArquivo = `proposta-garantia-${(d.processo.numero || protocolo).replace(/\D/g, '')}.pdf`;
-  if (baixar) pdf.save(nomeArquivo);
-  return { blob: pdf.output('blob'), nome: nomeArquivo };
+  const identificador = (d.processo.numero || protocolo).replace(/\D/g, '') || protocolo.replace(/[^a-z0-9-]/gi, '');
+  const nomeArquivo = `proposta-garantia-${identificador}.pdf`;
+  const resultado = { blob: pdf.output('blob'), nome: nomeArquivo, salvar: () => pdf.save(nomeArquivo) };
+  if (baixar) resultado.salvar();
+  return resultado;
 }
 
 /* Envio da proposta — sempre pelo Worker deste mesmo domínio. O navegador
@@ -1654,6 +1718,7 @@ function ligarEventos() {
 
     const d = coletar();
     window.__proposta = d;
+    pdfAtual = null;
 
     const protocolo = 'LV-' + new Date().toISOString().slice(2, 10).replace(/-/g, '') +
                       '-' + String(Math.floor(Math.random() * 9000) + 1000);
@@ -1675,8 +1740,8 @@ function ligarEventos() {
 
     let pdf;
     try {
-      /* o mesmo PDF que a pessoa baixa é o que segue para o Hub */
-      pdf = await gerarPdf(d, protocolo);
+      /* Gera em memória: enviar nunca deve iniciar um download no dispositivo. */
+      pdf = await gerarPdf(d, protocolo, { baixar: false });
     } catch (erro) {
       console.error(erro);
       liberar('Não foi possível gerar o PDF da proposta. Tente novamente; se continuar, avise o responsável pelo formulário.');
@@ -1691,6 +1756,9 @@ function ligarEventos() {
       return;
     }
 
+    /* O botão de download reutiliza exatamente o documento aceito pelo Hub. */
+    pdfAtual = pdf;
+
     liberar('');
     $('#okProtocolo').textContent = protocolo;
     $('#okProcesso').textContent = d.processo.numero || '—';
@@ -1704,7 +1772,8 @@ function ligarEventos() {
 
   $('#btnBaixar').addEventListener('click', async () => {
     try {
-      await gerarPdf(window.__proposta || coletar(), protocoloAtual);
+      if (pdfAtual) pdfAtual.salvar();
+      else await gerarPdf(window.__proposta || coletar(), protocoloAtual);
     } catch (erro) {
       console.error(erro);
       alert('Não foi possível gerar o PDF. Recarregue a página e tente novamente.');
@@ -1723,6 +1792,8 @@ function ligarEventos() {
     $$('.input').forEach(el => el.classList.remove('is-filled', 'is-invalid'));
     $$('.hint[data-status], #dataJudStatus').forEach(el => setHint(el, ''));
     if (assinatura) assinatura.clear();
+    pdfAtual = null;
+    protocoloAtual = '';
     $('#signaturePlaceholder').hidden = false;
     $('#signatureField').classList.remove('is-invalid');
     $('#signatureStatus').textContent = 'A assinatura é obrigatória para enviar.';
@@ -1780,11 +1851,9 @@ function ligarGate() {
 
     $('#gateSheet').hidden = true;
     $('#formSheet').hidden = false;
-    /* o canvas da assinatura foi dimensionado com a folha ainda oculta
-       (offsetWidth/offsetHeight = 0 nesse momento); o listener de 'resize'
-       já ligado em iniciarAssinatura() corrige o tamanho agora que ela
-       aparece de verdade. */
-    window.dispatchEvent(new Event('resize'));
+    /* A área de assinatura foi criada com a folha oculta. No próximo quadro,
+       o layout já tem dimensões reais e o canvas pode ser ajustado com segurança. */
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
     window.scrollTo({ top: 0 });
   });
 }

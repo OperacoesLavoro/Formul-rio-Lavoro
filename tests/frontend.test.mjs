@@ -51,3 +51,64 @@ test('frontend descarta resultado se o número foi editado durante a consulta', 
   assert.match(ui.elements['#dataJudStatus'].textContent, /alterado/);
   assert.equal(ui.elements['#btnDataJud'].disabled, false);
 });
+
+test('assinatura móvel não reduz o canvas oculto a 0x0 e bloqueia a rolagem por toque', () => {
+  let aoRedimensionar = null;
+  const contexto2d = { scale() {} };
+  const eventosTouch = [];
+  const canvas = {
+    offsetWidth: 0,
+    offsetHeight: 0,
+    width: 300,
+    height: 150,
+    style: {},
+    getContext: () => contexto2d,
+    addEventListener: (tipo, _fn, opcoes) => eventosTouch.push({ tipo, opcoes })
+  };
+  const campo = { classList: { remove() {} } };
+  const status = { textContent: '' };
+  const placeholder = { hidden: false };
+  const botaoLimpar = { addEventListener() {} };
+
+  class SignaturePadFalso {
+    constructor() { this.vazio = true; }
+    isEmpty() { return this.vazio; }
+    toData() { return []; }
+    clear() { this.vazio = true; }
+    fromData() { this.vazio = false; }
+    addEventListener() {}
+  }
+
+  const elementos = {
+    '#signatureCanvas': canvas,
+    '#signatureField': campo,
+    '#signatureStatus': status,
+    '#signaturePlaceholder': placeholder,
+    '#btnLimparAssinatura': botaoLimpar
+  };
+  const window = {
+    devicePixelRatio: 2,
+    addEventListener: (tipo, fn) => { if (tipo === 'resize') aoRedimensionar = fn; }
+  };
+  const context = vm.createContext({
+    document: { querySelector: seletor => elementos[seletor], addEventListener() {} },
+    window,
+    location: { protocol: 'https:' },
+    SignaturePad: SignaturePadFalso,
+    ResizeObserver: class { constructor(fn) { this.fn = fn; } observe() {} }
+  });
+  vm.runInContext(source, context);
+  vm.runInContext('iniciarAssinatura()', context);
+
+  assert.equal(canvas.width, 300);
+  assert.equal(canvas.height, 150);
+  assert.equal(canvas.style.touchAction, 'none');
+  assert.equal(canvas.style.overscrollBehavior, 'contain');
+  assert.ok(eventosTouch.some(evento => evento.tipo === 'touchmove' && evento.opcoes.passive === false));
+
+  canvas.offsetWidth = 320;
+  canvas.offsetHeight = 190;
+  aoRedimensionar();
+  assert.equal(canvas.width, 640);
+  assert.equal(canvas.height, 380);
+});

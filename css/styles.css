@@ -869,7 +869,18 @@ body {
   background: #fff; border: 1px solid var(--rule); border-radius: var(--r-sm); touch-action: none;
 }
 .signature-field.is-invalid { border-color: #b84a46; box-shadow: 0 0 0 2px rgba(184,74,70,.12); }
-.signature-field canvas { position: relative; z-index: 2; display: block; width: 100%; height: 100%; cursor: crosshair; }
+.signature-field canvas {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  touch-action: none;
+  overscroll-behavior: contain;
+  -webkit-user-select: none;
+  user-select: none;
+}
 .signature-line { position: absolute; z-index: 1; left: 9%; right: 9%; bottom: 42px; border-top: 1px solid #9dafba; }
 .signature-placeholder { position: absolute; z-index: 1; left: 0; right: 0; bottom: 17px; text-align: center; font-size: 11px; color: var(--muted-2); }
 .signature-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -988,6 +999,17 @@ body {
   line-height: 1.5;
   color: var(--muted);
 }
+.modal-ok .modal-head {
+  border-top: 4px solid var(--brand);
+  background: linear-gradient(180deg, var(--brand-wash), var(--paper));
+}
+.modal-head .success-message {
+  margin-top: 12px;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+.success-message strong { color: var(--ink); font-weight: 700; }
 
 .modal-body {
   flex: 1 1 auto;
@@ -1118,74 +1140,4 @@ body {
   .sheet { margin: 0; padding: 0; max-width: none; }
   .body { box-shadow: none; grid-template-columns: 1fr; }
   .block { break-inside: avoid; }
-}
-
-/* ExportaÃ§Ã£o visual: a mesma folha responsiva usada na tela, sem os controles. */
-.pdf-export {
-  width: 794px;
-  max-width: none;
-  margin: 0;
-  padding: 0;
-  background: var(--paper);
-}
-.pdf-export .masthead { border-radius: 0; }
-.pdf-export .body { grid-template-columns: 1fr; box-shadow: none; }
-.pdf-export .index,
-.pdf-export .actions,
-.pdf-export + .colophon { display: none; }
-.pdf-export .form { padding-top: 0; }
-.pdf-export .block { break-inside: avoid; }
-.pdf-export .row-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.pdf-export .row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.pdf-export .row-3:has(.field-grow) {
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, .7fr);
-}
-.pdf-export,
-.pdf-export * {
-  animation: none !important;
-  transition: none !important;
-}
-.pdf-export .field,
-.pdf-export .row,
-.pdf-export .party,
-.pdf-export .branch,
-.pdf-export .subform { animation: none !important; }
-.pdf-export .btn-lookup,
-.pdf-export .signature-actions,
-.pdf-export .signature-placeholder { display: none; }
-.pdf-field-value {
-  display: block;
-  width: 100%;
-  min-height: 43px;
-  padding: 10px 14px;
-  color: var(--ink);
-  background: var(--field);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-sm);
-  font-size: 13.5px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-.pdf-field-value.is-empty {
-  color: var(--muted-2);
-  font-style: italic;
-}
-.pdf-export-meta {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 13px 36px;
-  background: var(--field-flat);
-  border-bottom: 1px solid var(--rule);
-  color: var(--muted);
-  font-size: 11px;
-}
-.pdf-export-meta strong {
-  color: var(--ink);
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: .04em;
 }

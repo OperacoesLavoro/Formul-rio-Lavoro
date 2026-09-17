@@ -16,7 +16,6 @@ const assets = [
   { from: 'js/app.js', to: 'app.js' },
   { from: 'js/diagnostico.js', to: 'diagnostico.js' },
   { from: 'node_modules/signature_pad/dist/signature_pad.umd.min.js', to: 'signature_pad.umd.min.js' },
-  { from: 'node_modules/html2canvas/dist/html2canvas.min.js', to: 'html2canvas.min.js' },
   { from: 'node_modules/jspdf/dist/jspdf.umd.min.js', to: 'jspdf.umd.min.js' },
   { from: 'css/styles.css', to: 'styles.css' },
   { from: 'assets/Fundo 4.png', to: 'Fundo 4.png' },
