@@ -1,4 +1,5 @@
 import { HttpError } from '../utils/http.mjs';
+import { validarDocumentosFormulario } from './submission-validation.mjs';
 
 /* O PDF é uma captura em imagem da folha inteira: passa de 1 MB com facilidade.
    Os tetos abaixo são folgados para o uso real e fecham a porta para abuso. */
@@ -56,6 +57,7 @@ async function lerEnvio(request) {
   if (!dados || typeof dados !== 'object' || Array.isArray(dados)) {
     throw new HttpError(400, 'Os dados do formulário chegaram em formato inválido.');
   }
+  validarDocumentosFormulario(dados);
 
   const arquivo = form.get('pdf');
   if (typeof arquivo === 'string' || !arquivo || typeof arquivo.arrayBuffer !== 'function') {

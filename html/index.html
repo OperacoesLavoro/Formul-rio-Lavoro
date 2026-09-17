@@ -141,10 +141,11 @@
                 </label>
                 <div class="lookup">
                   <input class="input mono" id="autorDoc" name="autorDoc" inputmode="numeric"
-                         autocomplete="off" placeholder="00.000.000/0000-00" data-required>
+                         autocomplete="off" placeholder="00.000.000/0000-00" data-required
+                         aria-describedby="autorDocHint">
                   <button class="btn-lookup" type="button" id="autorBuscar" data-lookup="autor">Buscar</button>
                 </div>
-                <p class="hint" data-status="autor" role="status"></p>
+                <p class="hint" id="autorDocHint" data-status="autor" role="status"></p>
               </div>
             </div>
 
@@ -168,10 +169,11 @@
               <label class="label" for="reuDoc">CNPJ</label>
               <div class="lookup">
                 <input class="input mono" id="reuDoc" name="reuDoc" inputmode="numeric"
-                       autocomplete="off" placeholder="00.000.000/0000-00" data-required>
+                       autocomplete="off" placeholder="00.000.000/0000-00" data-required
+                       aria-describedby="reuDocHint">
                 <button class="btn-lookup" type="button" id="reuBuscar" data-lookup="reu">Buscar</button>
               </div>
-              <p class="hint" data-status="reu" role="status"></p>
+              <p class="hint" id="reuDocHint" data-status="reu" role="status"></p>
             </div>
 
             <div class="field">

@@ -8,14 +8,24 @@ const TOKEN = 'hub-token-only-for-tests';
 const ROTA = 'https://formulario.example/api/garantia-judicial/submit';
 
 // Payload sintético: os testes não usam dados nem processos reais.
-const payload = () => JSON.stringify({ protocolo: 'LV-260915-1234', formulario: { processo: { numero: '0001' } } });
+const formularioValido = () => ({
+  autor: { tipo: 'Pessoa jurídica', documento: '11.222.333/0001-81' },
+  reu: { documento: '11.444.777/0001-61' },
+  processo: { numero: '0001' }
+});
+const payload = (formulario = formularioValido()) => JSON.stringify({ protocolo: 'LV-260915-1234', formulario });
 const pdf = (conteudo = '%PDF-1.4 conteudo de teste') => new Blob([conteudo], { type: 'application/pdf' });
 
 const env = () => ({
   HUB_SUBMIT_URL: DESTINO,
   HUB_WEBHOOK_SECRET: TOKEN,
+  RATE_LIMIT_SALT: 'salt-only-for-tests',
   DATAJUD_APIKEY: 'test-only-placeholder',
   DATAJUD_RATE_LIMITER: { limit: async () => ({ success: true }) },
+  ENVIO_DIARIO_LIMITER: {
+    idFromName: chave => chave,
+    get: () => ({ fetch: async () => Response.json({ permitido: true, restantes: 29 }) })
+  },
   ASSETS: { fetch: async () => new Response('formulario') }
 });
 
@@ -26,7 +36,18 @@ function request({ comPayload = true, comPdf = true, arquivo = pdf(), corpo = nu
     if (comPayload) body.append('payload', payload());
     if (comPdf) body.append('pdf', arquivo, 'proposta-garantia-0001.pdf');
   }
-  return new Request(ROTA, { method, headers: { Origin: 'https://formulario.example', ...headers }, body });
+  return new Request(ROTA, {
+    method,
+    headers: { Origin: 'https://formulario.example', 'CF-Connecting-IP': '203.0.113.10', ...headers },
+    body
+  });
+}
+
+function corpoComFormulario(formulario) {
+  const corpo = new FormData();
+  corpo.append('payload', payload(formulario));
+  corpo.append('pdf', pdf(), 'proposta-garantia-0001.pdf');
+  return corpo;
 }
 
 test('encaminha proposta e PDF ao Hub com token apenas no servidor', async t => {
@@ -183,11 +204,101 @@ test('aplica o limite de chamadas ao envio sem encaminhar nada', async t => {
   assert.equal(nunca.mock.callCount(), 0);
 });
 
-test('rotas anteriores seguem respondendo com a nova configuração presente', async () => {
-  const status = await worker.fetch(new Request('https://formulario.example/api/status'), env());
+test('falha de forma fechada e legível quando os limitadores ficam indisponíveis', async t => {
+  const nunca = t.mock.method(globalThis, 'fetch', async () => { throw new Error('Não deveria encaminhar'); });
+
+  const rajada = env();
+  rajada.DATAJUD_RATE_LIMITER.limit = async () => { throw new Error('detalhe-interno'); };
+  const respostaRajada = await worker.fetch(request(), rajada);
+  assert.equal(respostaRajada.status, 503);
+  assert.match((await respostaRajada.json()).erro, /controle de requisições/i);
+
+  const diario = env();
+  diario.ENVIO_DIARIO_LIMITER.get = () => ({ fetch: async () => new Response('resposta inválida') });
+  const respostaDiaria = await worker.fetch(request(), diario);
+  assert.equal(respostaDiaria.status, 503);
+  assert.match((await respostaDiaria.json()).erro, /limite diário/i);
+
+  assert.equal(nunca.mock.callCount(), 0);
+});
+
+test('erro inesperado no envio não vaza detalhes nem usa mensagem de consulta', async t => {
+  const logs = t.mock.method(console, 'error', () => {});
+  const config = env();
+  config.ENVIO_DIARIO_LIMITER.idFromName = () => { throw new Error('detalhe-secreto'); };
+
+  const response = await worker.fetch(request(), config);
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { erro: 'Não foi possível concluir o envio.' });
+  const registrado = JSON.stringify(logs.mock.calls.map(call => call.arguments));
+  assert.ok(registrado.includes('worker_error'));
+  assert.ok(!registrado.includes('detalhe-secreto'));
+});
+
+test('backend impede CNPJ inválido e CNPJ repetido mesmo sem a interface', async t => {
+  const nunca = t.mock.method(globalThis, 'fetch', async () => { throw new Error('Não deveria encaminhar'); });
+  const casos = [
+    [{ ...formularioValido(), autor: { tipo: 'Pessoa jurídica', documento: '11.222.333/0001-82' } }, /CNPJ válido para o autor/],
+    [{ ...formularioValido(), reu: { documento: '11.444.777/0001-62' } }, /CNPJ válido para o réu/],
+    [{ ...formularioValido(), reu: { documento: '11.222.333/0001-81' } }, /diferente do CNPJ do autor/],
+    [{ ...formularioValido(), autor: { tipo: 'Pessoa física', documento: '111.111.111-11' } }, /CPF válido para o autor/],
+    [{ ...formularioValido(), autor: { tipo: 'desconhecido', documento: '11.222.333/0001-81' } }, /pessoa física ou jurídica/]
+  ];
+
+  for (const [formulario, mensagem] of casos) {
+    const response = await worker.fetch(request({ corpo: corpoComFormulario(formulario) }), env());
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).erro, mensagem);
+  }
+  assert.equal(nunca.mock.callCount(), 0);
+});
+
+test('bloqueia o trigésimo primeiro envio diário do IP sem expor o endereço', async t => {
+  const nunca = t.mock.method(globalThis, 'fetch', async () => { throw new Error('Não deveria encaminhar'); });
+  let chave = '';
+  const config = env();
+  config.ENVIO_DIARIO_LIMITER = {
+    idFromName: valor => { chave = valor; return valor; },
+    get: () => ({ fetch: async () => Response.json({ permitido: false, restantes: 0 }) })
+  };
+
+  const response = await worker.fetch(request(), config);
+  assert.equal(response.status, 429);
+  const corpo = await response.json();
+  assert.equal(corpo.codigo, 'ENVIO_LIMITE_DIARIO');
+  assert.equal(corpo.limite, 30);
+  assert.equal(corpo.erro, 'Você atingiu o limite máximo de 30 envios por dia para esta rede. Tente novamente amanhã.');
+  assert.ok(Number(response.headers.get('Retry-After')) >= 60);
+  assert.equal(chave.length, 64);
+  assert.ok(!chave.includes('203.0.113.10'));
+  assert.equal(nunca.mock.callCount(), 0);
+});
+
+test('publica o formulário em /judicial, normaliza a raiz e preserva API e assets', async () => {
+  const caminhos = [];
+  const config = env();
+  config.ASSETS.fetch = async request => {
+    caminhos.push(new URL(request.url).pathname);
+    return new Response('formulario');
+  };
+
+  const status = await worker.fetch(new Request('https://formulario.example/api/status'), config);
   assert.deepEqual(await status.json(), { service: 'datajud', configured: true });
-  const assets = await worker.fetch(new Request('https://formulario.example/'), env());
-  assert.equal(await assets.text(), 'formulario');
-  const desconhecida = await worker.fetch(new Request('https://formulario.example/api/garantia-judicial'), env());
+  const raiz = await worker.fetch(new Request('https://formulario.example/'), config);
+  assert.equal(raiz.status, 302);
+  assert.equal(raiz.headers.get('Location'), 'https://formulario.example/judicial');
+  assert.equal(raiz.headers.get('Cache-Control'), 'no-store');
+
+  const barraFinal = await worker.fetch(new Request('https://formulario.example/judicial/'), config);
+  assert.equal(barraFinal.status, 302);
+  assert.equal(barraFinal.headers.get('Location'), 'https://formulario.example/judicial');
+
+  const formulario = await worker.fetch(new Request('https://formulario.example/judicial'), config);
+  assert.equal(await formulario.text(), 'formulario');
+  const asset = await worker.fetch(new Request('https://formulario.example/app.js'), config);
+  assert.equal(await asset.text(), 'formulario');
+  assert.deepEqual(caminhos, ['/', '/app.js']);
+
+  const desconhecida = await worker.fetch(new Request('https://formulario.example/api/garantia-judicial'), config);
   assert.equal(desconhecida.status, 404);
 });

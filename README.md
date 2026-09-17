@@ -2,6 +2,8 @@
 
 Formulário HTML/CSS/JavaScript e consulta à API Pública DataJud no mesmo Cloudflare Worker.
 O time abre um link HTTPS; não precisa instalar Node nem iniciar um proxy local.
+O endereço canônico do formulário é `https://formulario.lavoroseguros.com.br/judicial`;
+a raiz do domínio redireciona para esse caminho.
 
 ## Publicar pelo GitHub no Cloudflare Workers
 
@@ -26,6 +28,7 @@ O time abre um link HTTPS; não precisa instalar Node nem iniciar um proxy local
    | Nome | Tipo | Conteúdo |
    | --- | --- | --- |
    | `HUB_WEBHOOK_SECRET` | **Secret** de runtime | token da autenticação servidor a servidor, só o valor, sem `Bearer ` |
+   | `RATE_LIMIT_SALT` | **Secret** de runtime | valor aleatório longo e exclusivo usado para anonimizar o IP no limitador diário |
 
    O Hub roda em Lovable, que exige o prefixo `/api/public/` nas rotas abertas. O endereço a
    configurar é `https://<hub>/api/public/garantia-judicial-submit` — com o prefixo e com hífen
@@ -54,7 +57,7 @@ Requer Node.js 22 ou superior.
 npm ci
 ```
 
-Copie `.dev.vars.example` para `.dev.vars` e preencha `DATAJUD_APIKEY`, `HUB_SUBMIT_URL` e `HUB_WEBHOOK_SECRET` localmente.
+Copie `.dev.vars.example` para `.dev.vars` e preencha `DATAJUD_APIKEY`, `HUB_SUBMIT_URL`, `HUB_WEBHOOK_SECRET` e `RATE_LIMIT_SALT` localmente.
 Use o endereço e o token de homologação do Hub, nunca os de produção.
 O Wrangler carrega esse arquivo; ele está ignorado pelo Git (`.dev.vars`, `.dev.vars.*`, `.env`, `.env.*`). Não envie credenciais ao repositório.
 
@@ -76,6 +79,7 @@ Para publicação manual autenticada na sua conta: `npm run deploy`. Antes de pu
 - `src/worker.mjs`: rotas HTTP, origem, limite de chamadas e respostas de erro.
 - `src/services/datajud.mjs`: validação CNJ, seleção de tribunal e chamada à API.
 - `src/services/hub.mjs`: validação do envio (payload + PDF) e encaminhamento autenticado ao Hub.
+- `src/services/submission-validation.mjs`: validação autoritativa de CPF/CNPJ e das partes antes do Hub.
 - `src/utils/http.mjs`: leitura limitada de JSON e respostas HTTP.
 - `scripts/build.mjs`: copia a lista explícita de `html/`, `css/`, `js/`, `assets/` e `_headers`
   para `dist/` no formato plano que o Worker publica — a organização por tipo é só do código-fonte.
@@ -92,7 +96,9 @@ O proxy não grava o formulário ou os números dos processos em banco nem em lo
 (JSON com `protocolo`, `geradoEm` e `formulario`, o mesmo objeto montado por `coletar()`) e
 `pdf` (o arquivo gerado em memória, sem download automático). O mesmo documento fica disponível no botão de download após a confirmação. `payload` vai como campo de
 texto puro — anexado como arquivo, com nome, o envio é recusado com 400. O Worker confere formato, tamanho
-e a assinatura `%PDF-` do arquivo, remonta o multipart e encaminha a `HUB_SUBMIT_URL` com
+e a assinatura `%PDF-` do arquivo. Ele também valida os dígitos verificadores de CPF/CNPJ e impede que autor
+pessoa jurídica e réu tenham o mesmo CNPJ; essas regras rodam novamente no servidor e não dependem do JavaScript
+do navegador. Depois, remonta o multipart e encaminha a `HUB_SUBMIT_URL` com
 `Authorization: Bearer <HUB_WEBHOOK_SECRET>`. Qualquer resposta 2xx do Hub confirma o
 recebimento; o Worker não espera consulta de seguradoras. Nada do envio vai para log: só
 `{ evento, codigo, upstreamStatus }` em caso de falha.
@@ -104,13 +110,17 @@ domínio dele) existe só dentro de `HUB_SUBMIT_URL`, do lado do servidor.
 
 ## Acesso e limites
 
-O deploy padrão gera um endereço acessível pela internet: o código não inclui login.
+O Worker é publicado somente no domínio corporativo; o endereço secundário `workers.dev` e URLs de preview ficam desativados.
+O código não inclui login.
 Para uso exclusivo do time, configure Cloudflare Access com a política de acesso da empresa antes de compartilhar dados reais.
 A verificação de origem não é autenticação e não impede chamadas de clientes fora do navegador.
+Os assets usam CSP restritiva, HSTS, bloqueio de frames e política de referência sem envio de URL.
 
-O limite é de 60 consultas por minuto por IP e por localização Cloudflare; pessoas na mesma rede compartilham esse limite.
-É uma proteção aproximada contra abuso, não uma cota global exata. O namespace `1001` deve ser exclusivo deste limitador na conta; ajuste-o se já estiver em uso.
-O backend espera até 15 segundos pelo CNJ; o navegador espera até 20 segundos e sempre libera o botão ao terminar.
+Consultas DataJud e tentativas de envio têm proteção contra rajadas de 60 chamadas por minuto, por IP e por localização Cloudflare.
+Além disso, cada IP pode realizar no máximo 30 tentativas de envio por dia-calendário no fuso `America/Sao_Paulo`. Esse teto diário usa um Durable Object transacional e é aplicado globalmente, mesmo que as requisições cheguem por localizações Cloudflare diferentes. O IP é transformado com SHA-256 e o secret `RATE_LIMIT_SALT` antes de identificar o contador; o endereço puro não é persistido nem registrado. Pessoas na mesma rede pública compartilham a cota.
+
+O limitador de 60/minuto é uma proteção aproximada contra abuso. O namespace `1001` deve ser exclusivo deste limitador na conta; ajuste-o se já estiver em uso. O secret `RATE_LIMIT_SALT` deve ser configurado no Worker e nunca enviado ao repositório.
+O backend espera até 30 segundos pelo CNJ e o navegador, até 35 segundos. No envio ao Hub, os limites são 30 e 60 segundos, respectivamente. O botão sempre é liberado ao terminar.
 
 A API pode não conter o processo consultado. O preenchimento usa órgão julgador e movimentações, incluindo classe/assuntos quando disponíveis; campos já preenchidos são preservados.
 Partes e valor da causa continuam manuais. A consulta de CNPJ existente usa serviços externos separados.
@@ -123,4 +133,5 @@ Este projeto não consulta seguradoras, não gera planilha, não envia e-mail e 
 - [Build e deploy pelo Git](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/)
 - [Secrets de runtime](https://developers.cloudflare.com/workers/configuration/secrets/)
 - [Limitação de chamadas](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/)
+- [Durable Objects](https://developers.cloudflare.com/durable-objects/)
 - [Acesso à API DataJud](https://datajud-wiki.cnj.jus.br/api-publica/acesso/)

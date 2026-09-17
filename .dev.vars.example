@@ -10,3 +10,7 @@ HUB_SUBMIT_URL=
 
 # Token da autenticação servidor a servidor com o Hub. Só o valor, sem o prefixo Bearer.
 HUB_WEBHOOK_SECRET=
+
+# Salt aleatório usado para anonimizar o IP no limitador diário. Gere um valor
+# longo e exclusivo; não reutilize senhas, tokens ou outras credenciais.
+RATE_LIMIT_SALT=

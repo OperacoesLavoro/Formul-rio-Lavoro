@@ -157,3 +157,29 @@ test('traduz falha do Worker em mensagem legível, sem detalhes internos', async
     );
   }
 });
+
+test('mostra o teto de 30 apenas quando o Worker sinaliza o limite diário', async () => {
+  const limiteDiario = montar(async () => Response.json({
+    codigo: 'ENVIO_LIMITE_DIARIO',
+    limite: 30,
+    erro: 'mensagem controlada pelo servidor'
+  }, { status: 429 }));
+  limiteDiario.context.dados = dados();
+  await assert.rejects(
+    vm.runInContext(`enviarProposta(dados, 'LV-260915-1234', { blob: new Blob(['%PDF-1.4']), nome: 'p.pdf' })`, limiteDiario.context),
+    { message: 'Você atingiu o limite máximo de 30 envios por dia para esta rede. Tente novamente amanhã.' }
+  );
+
+  const rajada = montar(async () => Response.json({
+    erro: 'Muitos envios. Aguarde um minuto e tente novamente.'
+  }, { status: 429 }));
+  rajada.context.dados = dados();
+  await assert.rejects(
+    vm.runInContext(`enviarProposta(dados, 'LV-260915-1234', { blob: new Blob(['%PDF-1.4']), nome: 'p.pdf' })`, rajada.context),
+    erro => {
+      assert.equal(erro.message, 'Muitos envios. Aguarde um minuto e tente novamente.');
+      assert.ok(!erro.message.includes('30 envios por dia'));
+      return true;
+    }
+  );
+});

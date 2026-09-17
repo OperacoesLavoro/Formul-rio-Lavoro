@@ -89,8 +89,8 @@ test('traduz erros e respostas inesperadas do CNJ sem repassar detalhes internos
   assert.deepEqual(await (await worker.fetch(request(), env())).json(), { hits: { hits: [] } });
 });
 
-test('entrega assets pelo binding, preservando a página inicial', async () => {
-  const response = await worker.fetch(new Request('https://formulario.example/'), env());
+test('entrega assets pelo binding no caminho canônico do formulário', async () => {
+  const response = await worker.fetch(new Request('https://formulario.example/judicial'), env());
   assert.equal(await response.text(), 'formulario');
 });
 

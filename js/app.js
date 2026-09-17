@@ -7,6 +7,7 @@
 let assinatura = null;
 let protocoloAtual = '';
 let pdfAtual = null;
+let propostaAtual = null;
 /* Preenchido pela Tela 1 (gate de identificação), antes de liberar o
    formulário. Segue dentro de coletar().responsavel — ver bloco 13. */
 let responsavel = null;
@@ -128,6 +129,38 @@ function maskCnpj(v) {
     .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
     .replace(/\.(\d{3})(\d)/, '.$1/$2')
     .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+}
+
+function digitoCnpj(base, pesos) {
+  const soma = pesos.reduce((total, peso, indice) => total + Number(base[indice]) * peso, 0);
+  const resto = soma % 11;
+  return resto < 2 ? 0 : 11 - resto;
+}
+
+function cnpjValido(valor) {
+  const cnpj = digits(valor);
+  if (cnpj.length !== 14 || /^(\d)\1{13}$/.test(cnpj)) return false;
+  const primeiro = digitoCnpj(cnpj, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const segundo = digitoCnpj(cnpj, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return Number(cnpj[12]) === primeiro && Number(cnpj[13]) === segundo;
+}
+
+function cpfValido(valor) {
+  const cpf = digits(valor);
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+  const calcular = tamanho => {
+    let soma = 0;
+    for (let indice = 0; indice < tamanho; indice += 1) soma += Number(cpf[indice]) * (tamanho + 1 - indice);
+    const digito = 11 - (soma % 11);
+    return digito >= 10 ? 0 : digito;
+  };
+  return Number(cpf[9]) === calcular(9) && Number(cpf[10]) === calcular(10);
+}
+
+function cnpjsPartesIguais(tipoAutor, documentoAutor, documentoReu) {
+  const autor = digits(documentoAutor);
+  const reu = digits(documentoReu);
+  return tipoAutor === 'PJ' && autor.length === 14 && reu.length === 14 && autor === reu;
 }
 
 /* (00) 0000-0000 ou (00) 00000-0000 — cresce para celular a partir do 11º dígito */
@@ -312,6 +345,49 @@ const CAMPOS_PARTE = {
   reu:   { doc: '#reuDoc',   nome: '#reuNome',   end: '#reuEndereco'   }
 };
 
+function tipoAutorAtual() {
+  return ($$('input[name="autorTipo"]').find(r => r.checked) || {}).value || '';
+}
+
+function erroDocumentoParte(parte) {
+  const documento = digits($(CAMPOS_PARTE[parte].doc).value);
+  if (parte === 'autor' && tipoAutorAtual() === 'PF') {
+    if (documento.length !== 11) return 'Informe um CPF com 11 dígitos.';
+    return cpfValido(documento) ? '' : 'Informe um CPF válido. Confira os dígitos informados.';
+  }
+  if (documento.length !== 14) return 'Informe um CNPJ com 14 dígitos.';
+  if (!cnpjValido(documento)) return 'Informe um CNPJ válido. Confira os dígitos informados.';
+  if (parte === 'reu' && cnpjsPartesIguais(tipoAutorAtual(), $('#autorDoc').value, documento)) {
+    return 'O CNPJ do réu deve ser diferente do CNPJ do autor.';
+  }
+  return '';
+}
+
+function validarDocumentoParte(parte, mostrarMensagem = false) {
+  const campo = $(CAMPOS_PARTE[parte].doc);
+  const status = $(`[data-status="${parte}"]`);
+  const erro = erroDocumentoParte(parte);
+  campo.setCustomValidity(erro);
+  if (erro && mostrarMensagem) {
+    campo.classList.add('is-invalid');
+    status.dataset.documentoErro = 'true';
+    setHint(status, erro, 'error');
+  } else if (!erro) {
+    campo.classList.remove('is-invalid');
+    if (status.dataset.documentoErro === 'true') {
+      delete status.dataset.documentoErro;
+      setHint(status, '');
+    }
+  }
+  return !erro;
+}
+
+function validarDocumentosPartes(mostrarMensagem = false) {
+  const autorValido = validarDocumentoParte('autor', mostrarMensagem);
+  const reuValido = validarDocumentoParte('reu', mostrarMensagem);
+  return autorValido && reuValido;
+}
+
 const limpar = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
 
 /* A base da Receita traz três armadilhas neste trecho:
@@ -403,11 +479,8 @@ async function buscarCnpj(parte) {
   const status = $(`[data-status="${parte}"]`);
   const botao = $(`[data-lookup="${parte}"]`);
   const cnpj = digits(campoDoc.value);
-
-  if (cnpj.length !== 14) {
-    setHint(status, 'Informe os 14 dígitos do CNPJ.', 'error');
-    return;
-  }
+  if (parte === 'autor' && tipoAutorAtual() !== 'PJ') return;
+  if (!validarDocumentoParte(parte, true)) return;
 
   botao.disabled = true;
   setHint(status, 'Consultando a base pública…', 'load');
@@ -847,6 +920,8 @@ function campoValido(el) {
   }
   if (el.classList.contains('input-money')) return centavosDe(el) > 0;
   if (el.dataset.dateBr === 'true') return Boolean(isoDoCampoData(el.id));
+  if (el.id === 'autorDoc') return !erroDocumentoParte('autor');
+  if (el.id === 'reuDoc') return !erroDocumentoParte('reu');
   return el.value.trim() !== '';
 }
 
@@ -1252,7 +1327,7 @@ function aplicarTipoRecurso() {
 function ligarMascaras() {
   /* documento do autor troca de máscara com a natureza */
   const aplicarMascaraAutor = () => {
-    const pf = ($$('input[name="autorTipo"]').find(r => r.checked) || {}).value === 'PF';
+    const pf = tipoAutorAtual() === 'PF';
     const campo = $('#autorDoc');
     const botao = $('#autorBuscar');
 
@@ -1262,23 +1337,34 @@ function ligarMascaras() {
     botao.hidden = pf;
     setHint($('[data-status="autor"]'),
       pf ? 'Pessoa física: preencha nome e endereço à mão.' : '', pf ? null : null);
+    validarDocumentoParte('autor', false);
+    validarDocumentoParte('reu', false);
   };
 
   $$('input[name="autorTipo"]').forEach(r => r.addEventListener('change', aplicarMascaraAutor));
   aplicarMascaraAutor();
 
   $('#autorDoc').addEventListener('input', (e) => {
-    const pf = ($$('input[name="autorTipo"]').find(r => r.checked) || {}).value === 'PF';
+    const pf = tipoAutorAtual() === 'PF';
     e.target.value = pf ? maskCpf(e.target.value) : maskCnpj(e.target.value);
+    validarDocumentoParte('autor', false);
+    validarDocumentoParte('reu', false);
     if (!pf && digits(e.target.value).length === 14) buscarCnpj('autor');
   });
 
   [['#reuDoc', 'reu']].forEach(([sel, parte]) => {
     $(sel).addEventListener('input', (e) => {
       e.target.value = maskCnpj(e.target.value);
+      validarDocumentoParte(parte, false);
       if (digits(e.target.value).length === 14) buscarCnpj(parte);
     });
   });
+
+  $('#autorDoc').addEventListener('blur', () => {
+    validarDocumentoParte('autor', true);
+    validarDocumentoParte('reu', Boolean($('#reuDoc').value));
+  });
+  $('#reuDoc').addEventListener('blur', () => validarDocumentoParte('reu', true));
 
   $$('[data-lookup]').forEach(b => {
     b.addEventListener('click', () => buscarCnpj(b.dataset.lookup));
@@ -1532,10 +1618,6 @@ async function gerarPdf(d, protocolo, { baixar = true } = {}) {
   linhaCampos([['Número do processo', d.processo.numero], ['Natureza', d.naturezaRotulo]]);
   linhaCampos([['Importância segurada', money(d.garantia.importanciaSegurada)], ['Entrega da apólice', dataPdf(d.entrega.prazo)]]);
 
-  secao('Responsável pelo envio');
-  linhaCampos([['Empresa', d.responsavel?.empresa], ['Nome completo', d.responsavel?.nome]]);
-  linhaCampos([['E-mail', d.responsavel?.email], ['Telefone / celular', d.responsavel?.telefone]]);
-
   secao('Partes do processo');
   linhaCampos([['Autor / reclamante', d.autor.nome], ['Tipo e documento', `${d.autor.tipo} — ${textoSeguro(d.autor.documento)}`]]);
   linhaCampos([['Endereço do autor / reclamante', d.autor.endereco]]);
@@ -1637,6 +1719,12 @@ async function enviarProposta(dados, protocolo, pdf) {
   let data;
   try { data = await response.json(); }
   catch { throw new Error('O serviço de envio devolveu uma resposta inesperada. Tente novamente.'); }
+  if (response.status === 429 && data.codigo === 'ENVIO_LIMITE_DIARIO') {
+    const limite = Number.isInteger(data.limite) && data.limite > 0 ? data.limite : null;
+    throw new Error(limite
+      ? `Você atingiu o limite máximo de ${limite} envios por dia para esta rede. Tente novamente amanhã.`
+      : (data.erro || 'Você atingiu o limite diário de envios. Tente novamente amanhã.'));
+  }
   if (!response.ok) throw new Error(data.erro || 'Não foi possível enviar a proposta. Tente novamente.');
   return data;
 }
@@ -1673,6 +1761,7 @@ function ligarEventos() {
   $('#form').addEventListener('submit', (e) => {
     e.preventDefault();
 
+    validarDocumentosPartes(true);
     const falta = primeiroInvalido();
     if (falta) {
       apontarInvalidos();
@@ -1680,7 +1769,7 @@ function ligarEventos() {
       if (bloco) bloco.scrollIntoView({ block: 'start' });
       (falta.type === 'radio' ? falta : falta).focus({ preventScroll: true });
       const nota = $('#actionsNote');
-      nota.textContent = 'Há campos obrigatórios em branco. Eles estão destacados.';
+      nota.textContent = 'Há campos obrigatórios em branco ou inválidos. Eles estão destacados.';
       nota.className = 'actions-note';
       return;
     }
@@ -1717,7 +1806,7 @@ function ligarEventos() {
     const rotulo = botao.textContent;
 
     const d = coletar();
-    window.__proposta = d;
+    propostaAtual = d;
     pdfAtual = null;
 
     const protocolo = 'LV-' + new Date().toISOString().slice(2, 10).replace(/-/g, '') +
@@ -1773,7 +1862,7 @@ function ligarEventos() {
   $('#btnBaixar').addEventListener('click', async () => {
     try {
       if (pdfAtual) pdfAtual.salvar();
-      else await gerarPdf(window.__proposta || coletar(), protocoloAtual);
+      else await gerarPdf(propostaAtual || coletar(), protocoloAtual);
     } catch (erro) {
       console.error(erro);
       alert('Não foi possível gerar o PDF. Recarregue a página e tente novamente.');
@@ -1793,6 +1882,7 @@ function ligarEventos() {
     $$('.hint[data-status], #dataJudStatus').forEach(el => setHint(el, ''));
     if (assinatura) assinatura.clear();
     pdfAtual = null;
+    propostaAtual = null;
     protocoloAtual = '';
     $('#signaturePlaceholder').hidden = false;
     $('#signatureField').classList.remove('is-invalid');

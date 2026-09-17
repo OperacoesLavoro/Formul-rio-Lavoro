@@ -3,7 +3,8 @@
   "name": "formulario-lavoro",
   "main": "src/worker.mjs",
   "compatibility_date": "2026-09-09",
-  "workers_dev": true,
+  "workers_dev": false,
+  "preview_urls": false,
   "routes": [
     {
       "pattern": "formulario.lavoroseguros.com.br",
@@ -16,7 +17,21 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*", "/", "/index.html", "/judicial", "/judicial/"]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ENVIO_DIARIO_LIMITER",
+        "class_name": "LimiteEnvioDiario"
+      }
+    ]
+  },
+  "exports": {
+    "LimiteEnvioDiario": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
   },
   "ratelimits": [
     {

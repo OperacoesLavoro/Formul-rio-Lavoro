@@ -14,7 +14,7 @@
     "deploy:check": "npm run build && wrangler deploy --keep-vars --dry-run"
   },
   "devDependencies": {
-    "wrangler": "4.130.0"
+    "wrangler": "4.134.0"
   },
   "dependencies": {
     "jspdf": "^4.2.1",
