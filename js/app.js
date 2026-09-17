@@ -8,6 +8,11 @@ let assinatura = null;
 let protocoloAtual = '';
 let pdfAtual = null;
 let propostaAtual = null;
+let turnstileToken = '';
+let turnstileSiteKey = '';
+let turnstileWidgetId = null;
+let turnstileObrigatorio = true;
+let turnstileConfigurado = false;
 /* Preenchido pela Tela 1 (gate de identificação), antes de liberar o
    formulário. Segue dentro de coletar().responsavel — ver bloco 13. */
 let responsavel = null;
@@ -130,6 +135,91 @@ function maskCnpj(v) {
     .replace(/\.(\d{3})(\d)/, '.$1/$2')
     .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
 }
+
+function atualizarBotaoEnvio() {
+  const botao = $('#btnEnviar');
+  const confirmacao = $('#confirmCheck');
+  if (!botao || !confirmacao) return;
+  botao.disabled = !confirmacao.checked || (turnstileObrigatorio && !turnstileToken);
+}
+
+function informarTurnstile(texto, estado) {
+  setHint($('#turnstileStatus'), texto, estado);
+}
+
+function renderizarTurnstile() {
+  const alvo = $('#turnstileWidget');
+  if (!alvo || alvo.closest('[hidden]')) return;
+  if (!turnstileObrigatorio) {
+    alvo.hidden = true;
+    informarTurnstile('');
+    atualizarBotaoEnvio();
+    return;
+  }
+  alvo.hidden = false;
+  if (!turnstileConfigurado || !turnstileSiteKey) {
+    informarTurnstile('A proteção de segurança ainda não foi configurada. Avise o responsável pelo formulário.', 'error');
+    atualizarBotaoEnvio();
+    return;
+  }
+  if (!globalThis.turnstile) {
+    informarTurnstile('Carregando a verificação de segurança…', 'load');
+    return;
+  }
+  if (turnstileWidgetId !== null) return;
+
+  try {
+    turnstileWidgetId = globalThis.turnstile.render(alvo, {
+      sitekey: turnstileSiteKey,
+      action: 'garantia_judicial_submit',
+      theme: 'light',
+      callback(token) {
+        turnstileToken = token;
+        informarTurnstile('Verificação de segurança concluída.', 'ok');
+        atualizarBotaoEnvio();
+      },
+      'expired-callback'() {
+        turnstileToken = '';
+        informarTurnstile('A verificação expirou. Confirme novamente para enviar.', 'warn');
+        atualizarBotaoEnvio();
+      },
+      'error-callback'() {
+        turnstileToken = '';
+        informarTurnstile('Não foi possível concluir a verificação. Tente novamente.', 'error');
+        atualizarBotaoEnvio();
+      }
+    });
+    informarTurnstile('Conclua a verificação de segurança para enviar.', 'load');
+  } catch {
+    informarTurnstile('Não foi possível iniciar a verificação de segurança. Recarregue a página.', 'error');
+  }
+}
+
+function reiniciarTurnstile() {
+  turnstileToken = '';
+  if (turnstileWidgetId !== null && globalThis.turnstile) {
+    try { globalThis.turnstile.reset(turnstileWidgetId); } catch { /* o callback de erro orienta o usuário */ }
+  }
+  atualizarBotaoEnvio();
+}
+
+async function configurarTurnstile() {
+  try {
+    const response = await fetch('/api/config', { headers: { Accept: 'application/json' } });
+    const dados = await response.json();
+    if (!response.ok || !dados?.turnstile) throw new Error('configuração indisponível');
+    turnstileObrigatorio = dados.turnstile.enabled !== false;
+    turnstileSiteKey = dados.turnstile.siteKey || '';
+    turnstileConfigurado = !turnstileObrigatorio || Boolean(turnstileSiteKey);
+  } catch {
+    turnstileObrigatorio = true;
+    turnstileConfigurado = false;
+  }
+  renderizarTurnstile();
+  atualizarBotaoEnvio();
+}
+
+globalThis.onTurnstileLoad = renderizarTurnstile;
 
 function digitoCnpj(base, pesos) {
   const soma = pesos.reduce((total, peso, indice) => total + Number(base[indice]) * peso, 0);
@@ -388,89 +478,28 @@ function validarDocumentosPartes(mostrarMensagem = false) {
   return autorValido && reuValido;
 }
 
-const limpar = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
-
-/* A base da Receita traz três armadilhas neste trecho:
-   o número repetido dentro do logradouro ("PAULISTA 37" com numero "37"),
-   o "SN" no lugar de sem número, e o tipo de via já embutido no logradouro
-   ("QUADRA" + "SAUN QUADRA 5 BLOCO B"). */
-function comporLogradouro(tipo, via, numero) {
-  let nome = limpar(via);
-  const num = limpar(numero);
-  const semNumero = /^S\/?N$/i.test(num);
-
-  if (num && !semNumero) {
-    const escapado = num.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    nome = nome.replace(new RegExp('[,\\s]+' + escapado + '$'), '').trim();
+/* A consulta passa pelo Worker: o navegador não compartilha o IP do cliente
+   nem depende de CORS dos provedores públicos. */
+async function consultarCnpjNoWorker(cnpj) {
+  let response;
+  try {
+    response = await fetch('/api/cnpj', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ cnpj }),
+      signal: AbortSignal.timeout(24000)
+    });
+  } catch (erro) {
+    throw new Error(erro?.name === 'TimeoutError'
+      ? 'A consulta do CNPJ demorou mais do que o esperado.'
+      : 'Não foi possível consultar o CNPJ agora.');
   }
 
-  let via1 = limpar(tipo);
-  if (via1 && new RegExp('(^|\\s)' + via1.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\s|$)', 'i').test(nome)) {
-    via1 = '';
-  }
-
-  const cabeca = [via1, nome].filter(Boolean).join(' ').trim();
-  const cauda = !num ? '' : (semNumero ? 's/n' : num);
-  return [cabeca, cauda].filter(Boolean).join(', ');
-}
-
-function montarEndereco(o) {
-  const via = comporLogradouro(o.tipo, o.logradouro, o.numero);
-  const cep = digits(o.cep);
-  return [
-    [via, limpar(o.complemento)].filter(Boolean).join(' — '),
-    limpar(o.bairro),
-    [limpar(o.municipio), limpar(o.uf)].filter(Boolean).join('/'),
-    cep.length === 8 ? 'CEP ' + cep.replace(/^(\d{5})(\d{3})$/, '$1-$2') : ''
-  ].filter(Boolean).join(' — ');
-}
-
-/* BrasilAPI e minhareceita.org devolvem o mesmo esquema: um parser serve às duas.
-   A pessoa que preenche o formulário não precisa saber qual delas respondeu. */
-function lerEsquemaPlano(d) {
-  return {
-    razao: limpar(d.razao_social) || limpar(d.nome_fantasia),
-    fantasia: limpar(d.nome_fantasia),
-    situacao: limpar(d.descricao_situacao_cadastral),
-    endereco: montarEndereco({
-      tipo: d.descricao_tipo_de_logradouro, logradouro: d.logradouro, numero: d.numero,
-      complemento: d.complemento, bairro: d.bairro,
-      municipio: d.municipio, uf: d.uf, cep: d.cep
-    })
-  };
-}
-
-async function pedir(url) {
-  const r = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (r.status === 404) throw new Error('CNPJ não encontrado na Receita.');
-  if (r.status === 429) throw new Error('Muitas consultas em pouco tempo. Tente novamente em instantes.');
-  if (!r.ok) throw new Error('Não foi possível consultar agora.');
-  return r.json();
-}
-
-async function viaBrasilApi(cnpj) {
-  return lerEsquemaPlano(await pedir(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`));
-}
-
-async function viaMinhaReceita(cnpj) {
-  return lerEsquemaPlano(await pedir(`https://minhareceita.org/${cnpj}`));
-}
-
-/* Reserva de último recurso: 3 consultas por minuto por IP. */
-async function viaCnpjWs(cnpj) {
-  const d = await pedir(`https://publica.cnpj.ws/cnpj/${cnpj}`);
-  const e = d.estabelecimento || {};
-  return {
-    razao: limpar(d.razao_social),
-    fantasia: limpar(e.nome_fantasia),
-    situacao: limpar(e.situacao_cadastral),
-    endereco: montarEndereco({
-      tipo: e.tipo_logradouro, logradouro: e.logradouro, numero: e.numero,
-      complemento: e.complemento, bairro: e.bairro,
-      municipio: e.cidade && e.cidade.nome,
-      uf: e.estado && e.estado.sigla, cep: e.cep
-    })
-  };
+  let dados;
+  try { dados = await response.json(); }
+  catch { throw new Error('O serviço de consulta devolveu uma resposta inesperada.'); }
+  if (!response.ok) throw new Error(dados.erro || 'Não foi possível consultar o CNPJ agora.');
+  return dados;
 }
 
 async function buscarCnpj(parte) {
@@ -486,10 +515,8 @@ async function buscarCnpj(parte) {
   setHint(status, 'Consultando a base pública…', 'load');
 
   let dados = null, erro = null;
-  for (const consulta of [viaBrasilApi, viaMinhaReceita, viaCnpjWs]) {
-    try { dados = await consulta(cnpj); break; }
-    catch (e) { erro = e; if (/não encontrado/i.test(e.message)) break; }
-  }
+  try { dados = await consultarCnpjNoWorker(cnpj); }
+  catch (e) { erro = e; }
 
   botao.disabled = false;
 
@@ -1690,7 +1717,7 @@ async function gerarPdf(d, protocolo, { baixar = true } = {}) {
 /* Envio da proposta — sempre pelo Worker deste mesmo domínio. O navegador
    não conhece o endereço do Hub nem o token da autenticação servidor a
    servidor: daqui só existe /api/garantia-judicial/submit. */
-async function enviarProposta(dados, protocolo, pdf) {
+async function enviarProposta(dados, protocolo, pdf, tokenSeguranca = '') {
   const corpo = new FormData();
   corpo.append('payload', JSON.stringify({
     protocolo,
@@ -1704,6 +1731,7 @@ async function enviarProposta(dados, protocolo, pdf) {
     /* Sem Content-Type à mão: o navegador monta o multipart e o boundary. */
     response = await fetch('/api/garantia-judicial/submit', {
       method: 'POST',
+      ...(tokenSeguranca ? { headers: { 'X-Turnstile-Token': tokenSeguranca } } : {}),
       body: corpo,
       signal: AbortSignal.timeout(60000)
     });
@@ -1786,11 +1814,10 @@ function ligarEventos() {
     $('#confirmCheck').checked = false;
     $('#btnEnviar').disabled = true;
     abrirModal('scrim');
+    renderizarTurnstile();
   });
 
-  $('#confirmCheck').addEventListener('change', (e) => {
-    $('#btnEnviar').disabled = !e.target.checked;
-  });
+  $('#confirmCheck').addEventListener('change', atualizarBotaoEnvio);
 
   $('#btnVoltar').addEventListener('click', () => fecharModal('scrim'));
 
@@ -1818,8 +1845,8 @@ function ligarEventos() {
     const liberar = (mensagem) => {
       setHint(status, mensagem || '', mensagem ? 'error' : undefined);
       botao.textContent = rotulo;
-      botao.disabled = false;
       voltar.disabled = false;
+      atualizarBotaoEnvio();
     };
 
     botao.disabled = true;
@@ -1838,9 +1865,10 @@ function ligarEventos() {
     }
 
     try {
-      await enviarProposta(d, protocolo, pdf);
+      await enviarProposta(d, protocolo, pdf, turnstileToken);
     } catch (erro) {
       console.error(erro);
+      reiniciarTurnstile();
       liberar((erro && erro.message) || 'Não foi possível enviar a proposta. Tente novamente.');
       return;
     }
@@ -1855,6 +1883,7 @@ function ligarEventos() {
 
     fecharModal('scrim');
     abrirModal('scrimOk');
+    reiniciarTurnstile();
   });
 
   $('#btnFechar').addEventListener('click', () => fecharModal('scrimOk'));
@@ -1884,6 +1913,7 @@ function ligarEventos() {
     pdfAtual = null;
     propostaAtual = null;
     protocoloAtual = '';
+    reiniciarTurnstile();
     $('#signaturePlaceholder').hidden = false;
     $('#signatureField').classList.remove('is-invalid');
     $('#signatureStatus').textContent = 'A assinatura é obrigatória para enviar.';
@@ -1959,6 +1989,7 @@ function definirDataHoje() {
 /* ── partida ─────────────────────────────────────────────────── */
 
 function iniciar() {
+  configurarTurnstile();
   ligarGate();
   montarUfs();
   montarTrts();

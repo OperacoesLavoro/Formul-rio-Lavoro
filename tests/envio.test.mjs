@@ -158,6 +158,25 @@ test('traduz falha do Worker em mensagem legível, sem detalhes internos', async
   }
 });
 
+test('envia o token anti-robô somente ao Worker e fora do multipart do Hub', async () => {
+  let chamada = null;
+  const ui = montar(async (url, options) => {
+    chamada = { url, options };
+    return Response.json({ recebido: true });
+  });
+  ui.context.dados = dados();
+
+  await vm.runInContext(`enviarProposta(
+    dados,
+    'LV-260915-1234',
+    { blob: new Blob(['%PDF-1.4']), nome: 'p.pdf' },
+    'token-turnstile'
+  )`, ui.context);
+
+  assert.equal(chamada.options.headers['X-Turnstile-Token'], 'token-turnstile');
+  assert.equal(chamada.options.body.get('turnstileToken'), null);
+});
+
 test('mostra o teto de 30 apenas quando o Worker sinaliza o limite diário', async () => {
   const limiteDiario = montar(async () => Response.json({
     codigo: 'ENVIO_LIMITE_DIARIO',

@@ -4,7 +4,7 @@
 <!-- caminhos sem prefixo de pasta: veja a nota em html/index.html -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Diagnóstico da consulta ao CNJ — Lavoro Seguros</title>
+<title>Diagnóstico do formulário — Lavoro Seguros</title>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -64,13 +64,13 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Diagnóstico da consulta ao CNJ</h1>
-  <p class="lede">Verifica a configuração do serviço no mesmo endereço do formulário.</p>
+  <h1>Diagnóstico do formulário</h1>
+  <p class="lede">Verifica as configurações do Worker no mesmo endereço do formulário.</p>
   <div class="card">
     <button id="btnStatus" type="button">Verificar configuração</button>
     <pre id="saida" role="status">Aguardando verificação.</pre>
-    <p>Esta verificação não consulta processos e não confirma a validade da chave no CNJ.
-    Para testar a consulta completa, informe um processo no formulário.</p>
+    <p>Esta verificação não consulta processos, CNPJs nem valida as credenciais nos serviços externos.
+    Para testar o fluxo completo, use dados de homologação no formulário.</p>
     <a class="volta" href="/">← voltar ao formulário</a>
   </div>
 </div>

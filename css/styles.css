@@ -1141,3 +1141,14 @@ body {
   .body { box-shadow: none; grid-template-columns: 1fr; }
   .block { break-inside: avoid; }
 }
+
+.turnstile-area {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  min-height: 72px;
+}
+
+.turnstile-area .hint:empty {
+  display: none;
+}

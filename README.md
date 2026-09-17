@@ -29,6 +29,8 @@ a raiz do domínio redireciona para esse caminho.
    | --- | --- | --- |
    | `HUB_WEBHOOK_SECRET` | **Secret** de runtime | token da autenticação servidor a servidor, só o valor, sem `Bearer ` |
    | `RATE_LIMIT_SALT` | **Secret** de runtime | valor aleatório longo e exclusivo usado para anonimizar o IP no limitador diário |
+   | `TURNSTILE_SITE_KEY` | **Secret** de runtime | site key do widget Turnstile criado para `formulario.lavoroseguros.com.br` |
+   | `TURNSTILE_SECRET` | **Secret** de runtime | secret key do Turnstile; nunca deve ir para o navegador ou repositório |
 
    O Hub roda em Lovable, que exige o prefixo `/api/public/` nas rotas abertas. O endereço a
    configurar é `https://<hub>/api/public/garantia-judicial-submit` — com o prefixo e com hífen
@@ -38,11 +40,22 @@ a raiz do domínio redireciona para esse caminho.
    O endereço fica em `HUB_SUBMIT_URL`, como variável não secreta no `wrangler.jsonc`. Mudar o
    caminho no Hub exige atualizar a configuração e realizar um novo deploy.
 
-   Sem as duas, o envio responde com `HUB_CONFIG` e nada é encaminhado. O token existe apenas no Worker: não vai para o HTML, para o JavaScript nem para log algum.
+   Sem as configurações do Hub, o envio responde com `HUB_CONFIG` e nada é encaminhado. Sem as duas chaves do Turnstile, o formulário mostra que a proteção está pendente e o Worker bloqueia o envio. Os segredos existem apenas no Worker: não vão para o HTML, para o JavaScript nem para log algum. A site key é pública por natureza, mas foi mantida como Secret de runtime para sobreviver aos deploys sem precisar entrar no repositório.
 
-6. Abra a URL HTTPS indicada pelo Cloudflare. Em `/diagnostico.html`, verifique se o Worker encontrou a configuração.
-7. No formulário, consulte um processo público conhecido e confira os dados retornados. O diagnóstico verifica a presença da configuração do CNJ, não a autenticação no CNJ nem o envio ao Hub.
-8. Compartilhe o link do formulário com o time. Se o Worker estiver conectado ao repositório em **Builds → Settings**, todo push para a branch de produção `main` inicia build e deploy automáticos.
+6. No painel Cloudflare, abra **Turnstile → Add widget** e configure:
+
+   | Campo | Valor |
+   | --- | --- |
+   | Nome | `Formulario Garantia Judicial` |
+   | Hostname | `formulario.lavoroseguros.com.br` |
+   | Widget mode | **Managed** |
+   | Pre-clearance | desativado |
+
+   Copie a **Site Key** e a **Secret Key** para os Secrets acima. O hostname também está fixado em `TURNSTILE_ALLOWED_HOSTNAME` no `wrangler.jsonc`; uma resposta emitida para outro domínio é recusada.
+
+7. Faça o deploy somente depois de salvar os Secrets. Abra a URL HTTPS indicada pelo Cloudflare. Em `/diagnostico.html`, verifique se o Worker encontrou a configuração.
+8. No formulário, consulte um processo público conhecido, consulte os CNPJs e confira os dados retornados. Na revisão, marque a confirmação e verifique se o Turnstile libera o botão **Enviar proposta**.
+9. Compartilhe o link do formulário com o time. Se o Worker estiver conectado ao repositório em **Builds → Settings**, todo push para a branch de produção `main` inicia build e deploy automáticos.
 
 `npx wrangler login` autentica apenas a CLI nesta máquina; ele não cria a conexão entre GitHub e Cloudflare. Se o Worker do T.I. não tiver uma integração Git configurada, o push não publica nada. Nesse caso, publique manualmente com `npm run deploy` ou peça ao T.I. para conectar o repositório e a branch `main` no painel.
 
@@ -57,7 +70,7 @@ Requer Node.js 22 ou superior.
 npm ci
 ```
 
-Copie `.dev.vars.example` para `.dev.vars` e preencha `DATAJUD_APIKEY`, `HUB_SUBMIT_URL`, `HUB_WEBHOOK_SECRET` e `RATE_LIMIT_SALT` localmente.
+Copie `.dev.vars.example` para `.dev.vars` e preencha `DATAJUD_APIKEY`, `HUB_SUBMIT_URL`, `HUB_WEBHOOK_SECRET` e `RATE_LIMIT_SALT` localmente. O exemplo deixa `TURNSTILE_ENABLED=false` apenas para desenvolvimento; produção usa `true` no `wrangler.jsonc` e exige `TURNSTILE_SITE_KEY` e `TURNSTILE_SECRET`.
 Use o endereço e o token de homologação do Hub, nunca os de produção.
 O Wrangler carrega esse arquivo; ele está ignorado pelo Git (`.dev.vars`, `.dev.vars.*`, `.env`, `.env.*`). Não envie credenciais ao repositório.
 
@@ -78,6 +91,8 @@ Para publicação manual autenticada na sua conta: `npm run deploy`. Antes de pu
 - `assets/`: logo e imagem de fundo.
 - `src/worker.mjs`: rotas HTTP, origem, limite de chamadas e respostas de erro.
 - `src/services/datajud.mjs`: validação CNJ, seleção de tribunal e chamada à API.
+- `src/services/cnpj.mjs`: validação, normalização e consulta server-side de CNPJ com provedores fixos.
+- `src/services/turnstile.mjs`: validação server-side do token anti-robô, da ação e do hostname.
 - `src/services/hub.mjs`: validação do envio (payload + PDF) e encaminhamento autenticado ao Hub.
 - `src/services/submission-validation.mjs`: validação autoritativa de CPF/CNPJ e das partes antes do Hub.
 - `src/utils/http.mjs`: leitura limitada de JSON e respostas HTTP.
@@ -92,13 +107,15 @@ Não aceita URL externa, índice arbitrário nem DSL Elasticsearch do cliente.
 A chave fica no servidor. Respostas da consulta usam `Cache-Control: no-store`.
 O proxy não grava o formulário ou os números dos processos em banco nem em logs de aplicação.
 
+`POST /api/cnpj` recebe somente `{ "cnpj": "14 dígitos" }`. O navegador chama essa rota no mesmo domínio; apenas o Worker consulta BrasilAPI, Minha Receita e CNPJ.ws por endereços fixos. O servidor valida os dígitos antes da consulta e devolve um objeto normalizado com razão social, nome fantasia, situação e endereço. No envio final, os CNPJs são confirmados novamente. Um CNPJ que todas as bases apontem como inexistente bloqueia o envio; indisponibilidade temporária dos provedores não bloqueia, porque a equipe mantém a conferência manual.
+
 `POST /api/garantia-judicial/submit` recebe `multipart/form-data` com dois campos: `payload`
 (JSON com `protocolo`, `geradoEm` e `formulario`, o mesmo objeto montado por `coletar()`) e
 `pdf` (o arquivo gerado em memória, sem download automático). O mesmo documento fica disponível no botão de download após a confirmação. `payload` vai como campo de
 texto puro — anexado como arquivo, com nome, o envio é recusado com 400. O Worker confere formato, tamanho
 e a assinatura `%PDF-` do arquivo. Ele também valida os dígitos verificadores de CPF/CNPJ e impede que autor
 pessoa jurídica e réu tenham o mesmo CNPJ; essas regras rodam novamente no servidor e não dependem do JavaScript
-do navegador. Depois, remonta o multipart e encaminha a `HUB_SUBMIT_URL` com
+do navegador. O token Turnstile chega em um cabeçalho separado e é validado antes mesmo da leitura do PDF; depois o Worker confirma os CNPJs e consome a cota diária. Por fim, remonta o multipart sem o token Turnstile e encaminha somente `payload` + `pdf` para a `HUB_SUBMIT_URL` com
 `Authorization: Bearer <HUB_WEBHOOK_SECRET>`. Qualquer resposta 2xx do Hub confirma o
 recebimento; o Worker não espera consulta de seguradoras. Nada do envio vai para log: só
 `{ evento, codigo, upstreamStatus }` em caso de falha.
@@ -116,14 +133,14 @@ Para uso exclusivo do time, configure Cloudflare Access com a política de acess
 A verificação de origem não é autenticação e não impede chamadas de clientes fora do navegador.
 Os assets usam CSP restritiva, HSTS, bloqueio de frames e política de referência sem envio de URL.
 
-Consultas DataJud e tentativas de envio têm proteção contra rajadas de 60 chamadas por minuto, por IP e por localização Cloudflare.
+Consultas DataJud, consultas de CNPJ e tentativas de envio têm proteção contra rajadas de 60 chamadas por minuto, por IP e por localização Cloudflare.
 Além disso, cada IP pode realizar no máximo 30 tentativas de envio por dia-calendário no fuso `America/Sao_Paulo`. Esse teto diário usa um Durable Object transacional e é aplicado globalmente, mesmo que as requisições cheguem por localizações Cloudflare diferentes. O IP é transformado com SHA-256 e o secret `RATE_LIMIT_SALT` antes de identificar o contador; o endereço puro não é persistido nem registrado. Pessoas na mesma rede pública compartilham a cota.
 
 O limitador de 60/minuto é uma proteção aproximada contra abuso. O namespace `1001` deve ser exclusivo deste limitador na conta; ajuste-o se já estiver em uso. O secret `RATE_LIMIT_SALT` deve ser configurado no Worker e nunca enviado ao repositório.
 O backend espera até 30 segundos pelo CNJ e o navegador, até 35 segundos. No envio ao Hub, os limites são 30 e 60 segundos, respectivamente. O botão sempre é liberado ao terminar.
 
 A API pode não conter o processo consultado. O preenchimento usa órgão julgador e movimentações, incluindo classe/assuntos quando disponíveis; campos já preenchidos são preservados.
-Partes e valor da causa continuam manuais. A consulta de CNPJ existente usa serviços externos separados.
+Partes e valor da causa continuam manuais. A consulta de CNPJ usa provedores públicos exclusivamente pelo Worker.
 O envio da proposta entrega os dados e o PDF ao Hub pelo Worker; o protocolo e o PDF continuam sendo gerados no navegador.
 Este projeto não consulta seguradoras, não gera planilha, não envia e-mail e não acessa banco de dados — isso é responsabilidade do Hub.
 
@@ -134,4 +151,6 @@ Este projeto não consulta seguradoras, não gera planilha, não envia e-mail e 
 - [Secrets de runtime](https://developers.cloudflare.com/workers/configuration/secrets/)
 - [Limitação de chamadas](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/)
 - [Durable Objects](https://developers.cloudflare.com/durable-objects/)
+- [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/get-started/)
+- [Validação server-side do Turnstile](https://developers.cloudflare.com/turnstile/get-started/server-side-validation/)
 - [Acesso à API DataJud](https://datajud-wiki.cnj.jus.br/api-publica/acesso/)

@@ -20,6 +20,17 @@ test('assets publicam headers defensivos sem liberar script inline', () => {
 
   assert.ok(!headers.includes("script-src 'self' 'unsafe-inline'"));
   assert.ok(!headers.includes("script-src 'self' 'unsafe-eval'"));
+  assert.ok(headers.includes('https://challenges.cloudflare.com'));
+  assert.ok(!headers.includes('https://brasilapi.com.br'));
+  assert.ok(!headers.includes('https://minhareceita.org'));
+  assert.ok(!headers.includes('https://publica.cnpj.ws'));
+});
+
+test('consulta de CNPJ usa somente a rota interna do Worker', () => {
+  assert.ok(frontend.includes("fetch('/api/cnpj'"));
+  assert.ok(!frontend.includes('https://brasilapi.com.br'));
+  assert.ok(!frontend.includes('https://minhareceita.org'));
+  assert.ok(!frontend.includes('https://publica.cnpj.ws'));
 });
 
 test('dados completos da proposta não ficam expostos em propriedade global', () => {

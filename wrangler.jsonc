@@ -12,7 +12,10 @@
     }
   ],
   "vars": {
-    "HUB_SUBMIT_URL": "https://hub.lavoroseguros.com.br/api/public/garantia-judicial-submit"
+    "HUB_SUBMIT_URL": "https://hub.lavoroseguros.com.br/api/public/garantia-judicial-submit",
+    "TURNSTILE_ENABLED": "true",
+    "TURNSTILE_ALLOWED_HOSTNAME": "formulario.lavoroseguros.com.br",
+    "CNPJ_VERIFY_ON_SUBMIT": "true"
   },
   "assets": {
     "directory": "./dist",

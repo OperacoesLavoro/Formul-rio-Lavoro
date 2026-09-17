@@ -39,7 +39,7 @@ function nomeSeguro(nome) {
   return /\.pdf$/i.test(limpo) ? limpo : 'proposta-garantia.pdf';
 }
 
-async function lerEnvio(request) {
+export async function lerEnvio(request) {
   const tipo = request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase();
   if (tipo !== 'multipart/form-data') throw new HttpError(415, 'Envie a proposta em multipart/form-data.');
   const declarado = Number(request.headers.get('Content-Length'));
@@ -72,7 +72,12 @@ async function lerEnvio(request) {
     throw new HttpError(400, 'O arquivo enviado não é um PDF.');
   }
 
-  return { payload, pdf: new Blob([bytes], { type: 'application/pdf' }), nome: nomeSeguro(arquivo.name) };
+  return {
+    payload,
+    dados,
+    pdf: new Blob([bytes], { type: 'application/pdf' }),
+    nome: nomeSeguro(arquivo.name)
+  };
 }
 
 /* Referência devolvida pelo Hub, quando houver. Só um identificador curto é
@@ -86,9 +91,8 @@ async function referenciaDoHub(response) {
   } catch { return ''; }
 }
 
-export async function encaminharProposta(request, env) {
+export async function encaminharProposta(envio, env) {
   const { destino, token } = lerConfiguracao(env);
-  const envio = await lerEnvio(request);
 
   const corpo = new FormData();
   corpo.append('payload', envio.payload);

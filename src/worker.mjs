@@ -1,6 +1,8 @@
 import { consultarProcesso, parseProcesso } from './services/datajud.mjs';
-import { encaminharProposta } from './services/hub.mjs';
+import { consultarCnpj, confirmarCnpjsDoFormulario } from './services/cnpj.mjs';
+import { encaminharProposta, lerEnvio } from './services/hub.mjs';
 import { consumirLimiteDiario, LIMITE_ENVIOS_POR_DIA } from './services/submission-limit.mjs';
+import { configuracaoTurnstilePublica, validarTurnstile } from './services/turnstile.mjs';
 import { HttpError, json, readJson } from './utils/http.mjs';
 
 export { LimiteEnvioDiario } from './services/submission-limit.mjs';
@@ -49,12 +51,23 @@ export default {
       if (url.pathname === '/api/status' && request.method === 'GET') {
         return json({ service: 'datajud', configured: Boolean(env.DATAJUD_APIKEY?.trim()) });
       }
+      if (url.pathname === '/api/config' && request.method === 'GET') {
+        return json({ turnstile: configuracaoTurnstilePublica(env) });
+      }
       if (url.pathname === '/api/garantia-judicial/submit') {
         if (request.method !== 'POST') return json({ erro: 'Use POST.' }, 405, { Allow: 'POST' });
         if (!env.DATAJUD_RATE_LIMITER) throw new HttpError(503, 'O serviço de envio ainda não foi configurado.');
         if (!await dentroDoLimite(request, env, 'envio')) {
           return json({ erro: 'Muitos envios. Aguarde um minuto e tente novamente.' }, 429, { 'Retry-After': '60' });
         }
+        // Recusa robôs antes de ler e alocar o PDF enviado no corpo da requisição.
+        await validarTurnstile(request.headers.get('X-Turnstile-Token') || '', request, env);
+        // Valida estrutura, documentos e PDF antes de consumir a cota diária.
+        const envio = await lerEnvio(request);
+        await confirmarCnpjsDoFormulario(
+          envio.dados.formulario,
+          String(env.CNPJ_VERIFY_ON_SUBMIT ?? 'true').toLowerCase() !== 'false'
+        );
         const limiteDiario = await consumirLimiteDiario(request, env);
         if (!limiteDiario.permitido) {
           return json({
@@ -64,7 +77,16 @@ export default {
           }, 429, { 'Retry-After': String(limiteDiario.retryAfter) });
         }
         // O token do Hub existe apenas aqui; nada dele chega ao navegador.
-        return json(await encaminharProposta(request, env));
+        return json(await encaminharProposta(envio, env));
+      }
+      if (url.pathname === '/api/cnpj') {
+        if (request.method !== 'POST') return json({ erro: 'Use POST.' }, 405, { Allow: 'POST' });
+        if (!env.DATAJUD_RATE_LIMITER) throw new HttpError(503, 'O serviço de consulta ainda não foi configurado.');
+        if (!await dentroDoLimite(request, env, 'cnpj')) {
+          return json({ erro: 'Muitas consultas. Aguarde um minuto e tente novamente.' }, 429, { 'Retry-After': '60' });
+        }
+        const corpo = await readJson(request, 256);
+        return json(await consultarCnpj(corpo?.cnpj));
       }
       if (url.pathname !== '/api/datajud') throw new HttpError(404, 'Rota não encontrada.');
       if (request.method !== 'POST') return json({ erro: 'Use POST.' }, 405, { Allow: 'POST' });

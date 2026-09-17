@@ -21,6 +21,8 @@ const env = () => ({
   HUB_WEBHOOK_SECRET: TOKEN,
   RATE_LIMIT_SALT: 'salt-only-for-tests',
   DATAJUD_APIKEY: 'test-only-placeholder',
+  TURNSTILE_ENABLED: 'false',
+  CNPJ_VERIFY_ON_SUBMIT: 'false',
   DATAJUD_RATE_LIMITER: { limit: async () => ({ success: true }) },
   ENVIO_DIARIO_LIMITER: {
     idFromName: chave => chave,
@@ -29,7 +31,7 @@ const env = () => ({
   ASSETS: { fetch: async () => new Response('formulario') }
 });
 
-function request({ comPayload = true, comPdf = true, arquivo = pdf(), corpo = null, headers = {}, method = 'POST' } = {}) {
+function request({ comPayload = true, comPdf = true, arquivo = pdf(), corpo = null, headers = {}, method = 'POST', tokenSeguranca = '' } = {}) {
   let body = corpo;
   if (body === null) {
     body = new FormData();
@@ -38,7 +40,12 @@ function request({ comPayload = true, comPdf = true, arquivo = pdf(), corpo = nu
   }
   return new Request(ROTA, {
     method,
-    headers: { Origin: 'https://formulario.example', 'CF-Connecting-IP': '203.0.113.10', ...headers },
+    headers: {
+      Origin: 'https://formulario.example',
+      'CF-Connecting-IP': '203.0.113.10',
+      ...(tokenSeguranca ? { 'X-Turnstile-Token': tokenSeguranca } : {}),
+      ...headers
+    },
     body
   });
 }
@@ -202,6 +209,40 @@ test('aplica o limite de chamadas ao envio sem encaminhar nada', async t => {
   assert.equal(response.headers.get('Retry-After'), '60');
   assert.ok(chaves[0].startsWith('envio:'));
   assert.equal(nunca.mock.callCount(), 0);
+});
+
+test('valida o Turnstile antes do envio e não repassa seu token ao Hub', async t => {
+  const config = {
+    ...env(),
+    TURNSTILE_ENABLED: 'true',
+    TURNSTILE_SITE_KEY: 'site-key',
+    TURNSTILE_SECRET: 'turnstile-secret',
+    TURNSTILE_ALLOWED_HOSTNAME: 'formulario.example'
+  };
+  const chamadas = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    chamadas.push(String(url));
+    if (String(url).includes('/siteverify')) {
+      assert.equal(options.body.get('secret'), 'turnstile-secret');
+      assert.equal(options.body.get('response'), 'token-cliente');
+      return Response.json({
+        success: true,
+        action: 'garantia_judicial_submit',
+        hostname: 'formulario.example'
+      });
+    }
+    assert.equal(url, DESTINO);
+    assert.equal(options.body.get('turnstileToken'), null);
+    assert.equal(typeof options.body.get('payload'), 'string');
+    return Response.json({ id: 'hub-seguro' }, { status: 201 });
+  });
+
+  const response = await worker.fetch(request({ tokenSeguranca: 'token-cliente' }), config);
+  assert.equal(response.status, 200);
+  assert.deepEqual(chamadas, [
+    'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+    DESTINO
+  ]);
 });
 
 test('falha de forma fechada e legível quando os limitadores ficam indisponíveis', async t => {

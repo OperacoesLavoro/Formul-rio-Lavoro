@@ -14,3 +14,9 @@ HUB_WEBHOOK_SECRET=
 # Salt aleatório usado para anonimizar o IP no limitador diário. Gere um valor
 # longo e exclusivo; não reutilize senhas, tokens ou outras credenciais.
 RATE_LIMIT_SALT=
+
+# Cloudflare Turnstile. Em desenvolvimento, use somente as chaves de teste
+# oficiais ou defina TURNSTILE_ENABLED=false localmente.
+TURNSTILE_SITE_KEY=
+TURNSTILE_SECRET=
+TURNSTILE_ENABLED=false

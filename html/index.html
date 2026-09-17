@@ -619,6 +619,10 @@
         <input type="checkbox" id="confirmCheck">
         <span>Revisei os dados e confirmo que estão corretos.</span>
       </label>
+      <div class="turnstile-area" aria-label="Verificação de segurança">
+        <div id="turnstileWidget"></div>
+        <p class="hint" id="turnstileStatus" role="status" aria-live="polite">Carregando a verificação de segurança…</p>
+      </div>
       <p class="hint" id="envioStatus" role="status" aria-live="polite"></p>
       <div class="modal-btns">
         <button class="btn-quiet" type="button" id="btnVoltar">Voltar e corrigir</button>
@@ -663,6 +667,7 @@
 
 <script src="signature_pad.umd.min.js"></script>
 <script src="jspdf.umd.min.js"></script>
-<script src="app.js?v=20260917-pdf-mobile"></script>
+<script src="app.js?v=20260917-security"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad&amp;render=explicit" async defer></script>
 </body>
 </html>
