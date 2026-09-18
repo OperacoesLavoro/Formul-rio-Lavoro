@@ -687,6 +687,7 @@ body {
 }
 .switch:hover { border-color: #bed2dd; }
 .switch:has(input:checked) { border-color: var(--brand); background: var(--brand-wash); }
+.switch:has(input:disabled) { cursor: not-allowed; opacity: .8; }
 
 .switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 

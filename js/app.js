@@ -139,8 +139,10 @@ function maskCnpj(v) {
 function atualizarBotaoEnvio() {
   const botao = $('#btnEnviar');
   const confirmacao = $('#confirmCheck');
-  if (!botao || !confirmacao) return;
-  botao.disabled = !confirmacao.checked || (turnstileObrigatorio && !turnstileToken);
+  const ciencia = $('#cienciaPrazoCheck');
+  if (!botao || !confirmacao || !ciencia) return;
+  botao.disabled = !confirmacao.checked || !ciencia.checked ||
+    (turnstileObrigatorio && !turnstileToken);
 }
 
 function informarTurnstile(texto, estado) {
@@ -716,11 +718,21 @@ function aplicarNatureza() {
   const fiscal = nat === 'tributario';
   alterna('#numAdministrativo', fiscal);
   $('#numAdministrativoOpt').hidden = fiscal;
+  alterna('#numCda', fiscal);
+  $('#numCdaOpt').hidden = fiscal;
 
   alterna('#valorCausa', !!nat && !recursal);
   alterna('#indice', !!nat);
   alterna('#objetivo', !!nat);
   alterna('#enquadramento', recursal);
+
+  /* na garantia recursal o acréscimo de 30% não é opcional (CLT, margem de
+     atualização até o julgamento) — trava marcado, sem escolha */
+  const add30Recursal = $('#add30Recursal');
+  add30Recursal.disabled = recursal;
+  if (recursal) add30Recursal.checked = true;
+  $('#add30RecursalHint').hidden = !recursal;
+
   /* Tribunal Regional: obrigatoriedade e visibilidade já vêm do [data-only]
      acima (trabalhista + recursal); só falta destravar o valor herdado
      quando a pessoa sai dessas naturezas, algo que o [data-only] já faz. */
@@ -914,14 +926,18 @@ function calcularVigencia() {
   return d;
 }
 
-/* Data limite em que o cliente precisa da apólice — é o SLA da operação, não
-   tem relação com a vigência. Devolve os dias restantes para quem for avisar. */
+/* Antecedência considerada suficiente para análise do risco, complementação
+   documental, aprovação e emissão. Abaixo disso o formulário avisa. */
+const ANTECEDENCIA_MINIMA_DIAS = 10;
+
+/* Prazo fatal/processual declarado pelo cliente — não tem relação com a
+   vigência. Devolve os dias restantes para quem for avisar. */
 function calcularPrazoEntrega() {
   const valor = isoDoCampoData('prazoEntrega');
   const hint = $('#prazoEntregaHint');
 
   if (!valor) {
-    setHint(hint, 'Data limite em que o cliente precisa da apólice emitida.');
+    setHint(hint, 'Data limite do processo.');
     return null;
   }
 
@@ -929,10 +945,10 @@ function calcularPrazoEntrega() {
   hoje.setHours(0, 0, 0, 0);
   const dias = Math.round((new Date(valor + 'T00:00:00') - hoje) / 86400000);
 
-  if (dias < 0) setHint(hint, 'A data limite já passou. Confira com o cliente.', 'error');
-  else if (dias === 0) setHint(hint, 'A apólice precisa ser entregue hoje.', 'warn');
-  else if (dias <= 2) setHint(hint, `Faltam ${dias} ${dias === 1 ? 'dia' : 'dias'} — prazo apertado para a subscrição.`, 'warn');
-  else setHint(hint, `Faltam ${dias} dias para a data limite.`, 'ok');
+  if (dias < 0) setHint(hint, 'O prazo informado já passou. Confira com o cliente.', 'error');
+  else if (dias === 0) setHint(hint, 'O prazo fatal é hoje — sem tempo hábil para análise, aprovação e emissão.', 'warn');
+  else if (dias <= ANTECEDENCIA_MINIMA_DIAS) setHint(hint, `Faltam ${dias} ${dias === 1 ? 'dia' : 'dias'} — abaixo dos ${ANTECEDENCIA_MINIMA_DIAS} dias recomendados para análise, aprovação e emissão.`, 'warn');
+  else setHint(hint, `Faltam ${dias} dias para o prazo fatal.`, 'ok');
 
   return dias;
 }
@@ -1093,6 +1109,7 @@ function coletar() {
       ano: p.ano,
       juizo: $('#juizoNome').value.trim(),
       numeroAdministrativo: $('#numAdministrativo').value.trim(),
+      numeroCda: $('#numCda').value.trim(),
       tribunalRegional: trtSel.value ? trtSel.options[trtSel.selectedIndex].text : ''
     },
     garantia: recursal ? {
@@ -1122,7 +1139,10 @@ function coletar() {
     },
     entrega: {
       prazo: isoDoCampoData('prazoEntrega'),
-      diasRestantes: diasEntrega
+      diasRestantes: diasEntrega,
+      /* ciência de que o prazo é responsabilidade do cliente e de que o envio
+         não garante aprovação nem emissão — marcada na tela de conferência */
+      cienciaPrazo: $('#cienciaPrazoCheck').checked
     },
     exito: ($$('input[name="exito"]').find(r => r.checked) || {}).value || '',
     advogado: {
@@ -1166,7 +1186,7 @@ function montarConferencia(d) {
   /* menorIdade nulo = a natureza escolhida nem faz a pergunta; nesse caso a
      linha não aparece, em vez de aparecer como “não informado” */
   blocos.push(g('Partes', [
-    linhaRevisao('Autor', d.autor.nome),
+    linhaRevisao('Segurado', d.autor.nome),
     linhaRevisao(d.autor.tipo === 'Pessoa física' ? 'CPF' : 'CNPJ', d.autor.documento, 'mono'),
     linhaRevisao('Endereço', d.autor.endereco),
     ...(d.menorIdade === null ? [] : [linhaRevisao('Envolve menor de idade', d.menorIdade)]),
@@ -1174,7 +1194,7 @@ function montarConferencia(d) {
       linhaRevisao('Representante legal', d.representante.nome),
       linhaRevisao('CPF do representante', d.representante.cpf, 'mono')
     ] : []),
-    linhaRevisao('Réu / tomador', d.reu.nome),
+    linhaRevisao('Tomador', d.reu.nome),
     linhaRevisao('CNPJ', d.reu.documento, 'mono'),
     linhaRevisao('Endereço', d.reu.endereco)
   ]));
@@ -1186,6 +1206,7 @@ function montarConferencia(d) {
     linhaRevisao('Juízo / vara', d.processo.juizo),
     linhaRevisao('Natureza', d.naturezaRotulo),
     linhaRevisao('Número do processo administrativo', d.processo.numeroAdministrativo, 'mono'),
+    linhaRevisao('Número da CDA', d.processo.numeroCda, 'mono'),
     linhaRevisao('Tribunal Regional', d.processo.tribunalRegional)
   ]));
 
@@ -1216,7 +1237,7 @@ function montarConferencia(d) {
     linhaRevisao('Vigência', d.vigencia.anos
       ? `${d.vigencia.anos} anos — de ${new Date(d.vigencia.inicio + 'T00:00:00').toLocaleDateString('pt-BR')} a ${new Date(d.vigencia.fim + 'T00:00:00').toLocaleDateString('pt-BR')}`
       : ''),
-    linhaRevisao('Prazo para entrega da apólice', d.entrega.prazo
+    linhaRevisao('Prazo fatal / processual', d.entrega.prazo
       ? new Date(d.entrega.prazo + 'T00:00:00').toLocaleDateString('pt-BR')
       : ''),
     linhaRevisao('Probabilidade de êxito', d.exito)
@@ -1235,7 +1256,7 @@ function montarConferencia(d) {
   if (d.processo.digitoConfere === false)
     avisos.push('O dígito verificador do número do processo não confere.');
   if (d.autor.nome && d.reu.nome && d.autor.nome === d.reu.nome)
-    avisos.push('Autor e réu estão com o mesmo nome.');
+    avisos.push('Segurado e tomador estão com o mesmo nome.');
   if (d.garantia.importanciaSegurada === 0)
     avisos.push('A importância segurada está em R$ 0,00.');
   if (d.natureza === 'recursal' && d.garantia.ajusteManual)
@@ -1245,11 +1266,11 @@ function montarConferencia(d) {
   if (!DEPOSITO_RECURSAL.fonte.confirmado && d.natureza === 'recursal')
     avisos.push('A tabela de depósito recursal em app.js ainda não foi atualizada.');
   if (d.entrega.diasRestantes !== null && d.entrega.diasRestantes < 0)
-    avisos.push('A data limite para entrega da apólice já passou.');
-  else if (d.entrega.diasRestantes !== null && d.entrega.diasRestantes <= 2)
-    avisos.push('O prazo para entrega da apólice é curto para a subscrição.');
+    avisos.push('O prazo fatal/processual informado já passou.');
+  else if (d.entrega.diasRestantes !== null && d.entrega.diasRestantes <= ANTECEDENCIA_MINIMA_DIAS)
+    avisos.push(`Faltam ${d.entrega.diasRestantes} dia(s) para o prazo fatal — abaixo dos ${ANTECEDENCIA_MINIMA_DIAS} dias recomendados para análise do risco, complementação documental, aprovação e emissão.`);
   if (d.menorIdade === 'sim')
-    avisos.push('Autor menor de idade: a apólice precisa qualificar o representante legal.');
+    avisos.push('Segurado menor de idade: a apólice precisa qualificar o representante legal.');
 
   if (avisos.length) {
     blocos.push(`<div class="review-warn"><b>Vale conferir:</b>
@@ -1643,21 +1664,22 @@ async function gerarPdf(d, protocolo, { baixar = true } = {}) {
 
   secao('Resumo da solicitação');
   linhaCampos([['Número do processo', d.processo.numero], ['Natureza', d.naturezaRotulo]]);
-  linhaCampos([['Importância segurada', money(d.garantia.importanciaSegurada)], ['Entrega da apólice', dataPdf(d.entrega.prazo)]]);
+  linhaCampos([['Importância segurada', money(d.garantia.importanciaSegurada)], ['Prazo fatal declarado pelo solicitante', dataPdf(d.entrega.prazo)]]);
 
   secao('Partes do processo');
-  linhaCampos([['Autor / reclamante', d.autor.nome], ['Tipo e documento', `${d.autor.tipo} — ${textoSeguro(d.autor.documento)}`]]);
-  linhaCampos([['Endereço do autor / reclamante', d.autor.endereco]]);
+  linhaCampos([['Segurado', d.autor.nome], ['Tipo e documento', `${d.autor.tipo} — ${textoSeguro(d.autor.documento)}`]]);
+  linhaCampos([['Endereço do segurado', d.autor.endereco]]);
   if (d.menorIdade !== null) linhaCampos([['Envolve menor de idade', d.menorIdade], ['Representante legal', d.representante?.nome]]);
   if (d.representante) linhaCampos([['CPF do representante', d.representante.cpf]]);
-  linhaCampos([['Réu / tomador', d.reu.nome], ['CNPJ', d.reu.documento]]);
-  linhaCampos([['Endereço do réu / tomador', d.reu.endereco]]);
+  linhaCampos([['Tomador', d.reu.nome], ['CNPJ', d.reu.documento]]);
+  linhaCampos([['Endereço do tomador', d.reu.endereco]]);
 
   secao('Dados do processo');
   linhaCampos([['Número CNJ', d.processo.numero], ['Ramo da Justiça', d.processo.ramo]]);
   linhaCampos([['Tribunal', d.processo.tribunal], ['Juízo / vara', d.processo.juizo]]);
   linhaCampos([['Ano', d.processo.ano], ['Tribunal Regional', d.processo.tribunalRegional]]);
   if (d.processo.numeroAdministrativo) linhaCampos([['Processo administrativo', d.processo.numeroAdministrativo]]);
+  if (d.processo.numeroCda) linhaCampos([['Número da CDA', d.processo.numeroCda]]);
 
   secao('Garantia solicitada');
   if (d.natureza === 'recursal') {
@@ -1677,10 +1699,32 @@ async function gerarPdf(d, protocolo, { baixar = true } = {}) {
   linhaCampos([['Índice de atualização', d.indice], ['Probabilidade de êxito', d.exito]]);
   linhaCampos([['Objetivo da garantia', d.objetivo]]);
   linhaCampos([['Início da vigência', dataPdf(d.vigencia.inicio)], ['Fim da vigência', dataPdf(d.vigencia.fim)]]);
-  linhaCampos([['Período', d.vigencia.anos ? `${d.vigencia.anos} ano(s)` : ''], ['Prazo para entrega', dataPdf(d.entrega.prazo)]]);
+  linhaCampos([['Período', d.vigencia.anos ? `${d.vigencia.anos} ano(s)` : ''], ['Prazo fatal / processual', dataPdf(d.entrega.prazo)]]);
 
   secao('Advogado responsável');
   linhaCampos([['Nome', d.advogado.nome], ['OAB', `${d.advogado.oab || 'Não informada'} / ${d.advogado.uf || 'UF'}`]]);
+
+  /* Fica antes da assinatura de propósito: é o texto que a assinatura logo
+     abaixo endossa, e o PDF é o documento que o Hub arquiva. */
+  secao('Prazo processual e responsabilidade');
+  const declaracao = [
+    'O controle e a observância do prazo processual/fatal são de responsabilidade do cliente e/ou de seus representantes legais.',
+    'A solicitação deve ser encaminhada com antecedência suficiente para análise do risco, eventual complementação documental, aprovação e emissão da apólice.',
+    'O preenchimento e o envio deste formulário não representam garantia de aprovação do risco nem de emissão da apólice dentro do prazo informado.'
+  ];
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8.5);
+  const linhasDeclaracao = declaracao.flatMap(texto => pdf.splitTextToSize('•  ' + texto, larguraUtil - 7));
+  const alturaDeclaracao = 8 + linhasDeclaracao.length * 4.1;
+  garantirEspaco(alturaDeclaracao + 4);
+  pdf.setFillColor(...gelo);
+  pdf.setDrawColor(...borda);
+  pdf.roundedRect(margem, y, larguraUtil, alturaDeclaracao, 1.3, 1.3, 'FD');
+  pdf.setTextColor(...grafite);
+  pdf.text(linhasDeclaracao, margem + 3.5, y + 6);
+  y += alturaDeclaracao + 4;
+  linhaCampos([['Ciência declarada pelo solicitante',
+    d.entrega.cienciaPrazo ? 'Sim — aceite registrado no envio' : 'Não registrada']]);
 
   secao('Assinatura do responsável');
   garantirEspaco(38);
@@ -1812,12 +1856,14 @@ function ligarEventos() {
 
     $('#modalBody').innerHTML = montarConferencia(coletar());
     $('#confirmCheck').checked = false;
+    $('#cienciaPrazoCheck').checked = false;
     $('#btnEnviar').disabled = true;
     abrirModal('scrim');
     renderizarTurnstile();
   });
 
   $('#confirmCheck').addEventListener('change', atualizarBotaoEnvio);
+  $('#cienciaPrazoCheck').addEventListener('change', atualizarBotaoEnvio);
 
   $('#btnVoltar').addEventListener('click', () => fecharModal('scrim'));
 

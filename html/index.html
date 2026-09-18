@@ -119,17 +119,18 @@
         <div class="block-head">
           <span class="eyebrow">Seção 01</span>
           <h2>Partes</h2>
-          <p class="block-sub">O réu é o tomador da garantia.</p>
+          <p class="block-sub">Segurado é quem tem direito ao valor discutido no processo; Tomador é quem deve esse valor e contrata a garantia.</p>
         </div>
 
         <div class="parties">
           <fieldset class="party">
-            <legend>Autor</legend>
+            <legend>Segurado</legend>
+            <p class="fieldset-note">Credor do valor discutido no processo. Nos processos trabalhistas, é o Reclamante; no cível e no tributário, pode ser autor ou réu.</p>
 
             <div class="row">
               <div class="field field-auto">
                 <span class="label">Natureza</span>
-                <div class="segmented" role="radiogroup" aria-label="Natureza do autor">
+                <div class="segmented" role="radiogroup" aria-label="Natureza do segurado">
                   <label><input type="radio" name="autorTipo" value="PJ" checked><span>Pessoa jurídica</span></label>
                   <label><input type="radio" name="autorTipo" value="PF"><span>Pessoa física</span></label>
                 </div>
@@ -162,8 +163,8 @@
           </fieldset>
 
           <fieldset class="party">
-            <legend>Réu <em>&middot; tomador</em></legend>
-            <p class="fieldset-note">Sempre pessoa jurídica. Basta o CNPJ — razão social e endereço vêm do cartão&nbsp;CNPJ.</p>
+            <legend>Tomador</legend>
+            <p class="fieldset-note">Devedor do valor discutido no processo — é ele quem contrata a garantia. Sempre pessoa jurídica. Basta o CNPJ — razão social e endereço vêm do cartão&nbsp;CNPJ.</p>
 
             <div class="field field-doc">
               <label class="label" for="reuDoc">CNPJ</label>
@@ -229,6 +230,15 @@
                    placeholder="ex.: 10880.720145/2025-11">
             <p class="hint">Obrigatório para tributário / fiscal / administrativo.</p>
           </div>
+        </div>
+
+        <div class="field">
+          <label class="label" for="numCda">
+            Número da CDA <span class="opt" id="numCdaOpt">opcional</span>
+          </label>
+          <input class="input mono" id="numCda" name="numCda" autocomplete="off"
+                 placeholder="ex.: 80.6.09.089086-19">
+          <p class="hint">Certidão de Dívida Ativa — obrigatória para execução fiscal.</p>
         </div>
 
         <div class="field" data-only="trabalhista recursal" hidden>
@@ -356,18 +366,18 @@
             <input class="input mono" id="numAutoInfracao" name="numAutoInfracao" autocomplete="off">
           </div>
 
-          <div class="field" data-only="tributario" hidden>
+          <div class="field" data-only="civel trabalhista tributario" hidden>
             <label class="label" for="linhaDefesa">
               Linha de defesa a ser sustentada
             </label>
             <textarea class="input textarea" id="linhaDefesa" name="linhaDefesa" rows="4"
-                      placeholder="Tese central da defesa na esfera fiscal."></textarea>
-            <p class="hint">Exigida apenas na garantia judicial fiscal.</p>
+                      placeholder="Tese central da defesa no processo."></textarea>
+            <p class="hint">É o que a seguradora usa para analisar se aceita o risco.</p>
           </div>
 
           <div class="field">
-            <label class="label" for="historico">Histórico do processo <span class="opt">opcional</span></label>
-            <textarea class="input textarea" id="historico" name="historico" rows="5"
+            <label class="label" for="historico">Histórico do processo</label>
+            <textarea class="input textarea" id="historico" name="historico" rows="5" data-required
                       placeholder="Andamento relevante até aqui. A busca da seção 02 pode preencher este campo."></textarea>
           </div>
         </div>
@@ -426,6 +436,7 @@
               <em>Margem para atualização do depósito até o julgamento do recurso.</em>
             </span>
           </label>
+          <p class="hint" id="add30RecursalHint" hidden>Obrigatório na garantia recursal — não é possível desmarcar.</p>
 
           <div class="ledger" id="ledgerRecursal">
             <div class="ledger-row">
@@ -513,17 +524,25 @@
           </div>
         </div>
 
-        <!-- SLA: a data em que a apólice precisa estar na mão do cliente,
-             sem relação com o prazo de vigência acima -->
+        <!-- Prazo fatal declarado pelo cliente: não tem relação com o prazo de
+             vigência acima, e a observância dele é responsabilidade do cliente
+             e de seus representantes legais — daí o aviso logo abaixo. -->
         <div class="row row-3">
           <div class="field">
-            <label class="label" for="prazoEntrega">Prazo para entrega da apólice</label>
+            <label class="label" for="prazoEntrega">Prazo fatal / processual</label>
             <input class="input mono date-br" type="text" id="prazoEntrega" name="prazoEntrega"
                    inputmode="numeric" autocomplete="off" placeholder="dd/mm/aaaa"
                    data-date-br="true" data-required>
-            <p class="hint" id="prazoEntregaHint">Data limite em que o cliente precisa da apólice emitida.</p>
+            <p class="hint" id="prazoEntregaHint">Data limite do processo.</p>
           </div>
         </div>
+
+        <p class="branch-note">O controle e a observância do prazo processual/fatal são de
+          responsabilidade do cliente e/ou de seus representantes legais. Encaminhe a solicitação
+          com antecedência suficiente para análise do risco, eventual complementação documental,
+          aprovação e emissão da apólice. <b>O preenchimento e o envio deste formulário não
+          representam garantia de aprovação do risco nem de emissão da apólice dentro do prazo
+          informado.</b></p>
 
         <div class="field">
           <span class="label">Probabilidade de êxito</span>
@@ -619,6 +638,12 @@
         <input type="checkbox" id="confirmCheck">
         <span>Revisei os dados e confirmo que estão corretos.</span>
       </label>
+      <label class="check">
+        <input type="checkbox" id="cienciaPrazoCheck">
+        <span>Declaro estar ciente de que o controle do prazo processual/fatal é de responsabilidade
+          do cliente e/ou de seus representantes legais, e de que este envio não garante a aprovação
+          do risco nem a emissão da apólice dentro do prazo informado.</span>
+      </label>
       <div class="turnstile-area" aria-label="Verificação de segurança">
         <div id="turnstileWidget"></div>
         <p class="hint" id="turnstileStatus" role="status" aria-live="polite">Carregando a verificação de segurança…</p>
@@ -639,6 +664,9 @@
       <span class="eyebrow">Envio confirmado</span>
       <h2 id="okTitle">Formulário enviado com sucesso!</h2>
       <p class="success-message">Recebemos sua solicitação e ela já foi encaminhada para análise da equipe especializada da Lavoro Seguros. Você receberá nosso retorno em até <strong>48 horas</strong>. Guarde o protocolo abaixo para acompanhar o atendimento. Para manter uma cópia, use o botão “Baixar formulário em PDF”.</p>
+      <p class="hint">O envio não garante a aprovação do risco nem a emissão da apólice dentro do
+        prazo processual informado. O controle do prazo permanece com o cliente e/ou seus
+        representantes legais.</p>
     </header>
     <div class="modal-body">
       <div class="ledger">
